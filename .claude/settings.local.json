@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.geekyhobbies.com)",
+      "WebFetch(domain:www.domino-games.com)",
+      "WebFetch(domain:ultrafoodmess.com)",
+      "WebFetch(domain:cdn.1j1ju.com)",
+      "Bash(npm -v)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsx *)"
+    ]
+  }
+}
