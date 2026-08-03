@@ -484,18 +484,73 @@ input {
   transform: translateY(-1px);
 }
 
+.score-row.leader {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--panel-border));
+}
+
+.score-row.leader.active {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+
+.score-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
 .score-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-weight: 600;
+}
+
+.leader-crown {
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 .score-hand {
   color: var(--text-dim);
 }
 
+.score-points-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .score-points {
   font-weight: 700;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.score-delta {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  animation: score-delta-pop 1.7s ease-out both;
+}
+
+.score-delta.positive {
+  color: var(--good);
+}
+
+.score-delta.negative {
+  color: var(--bad);
 }
 
 .board-wrap {
@@ -1014,6 +1069,13 @@ input {
   100% { opacity: 0; transform: translateY(-46px) scale(1); }
 }
 
+@keyframes score-delta-pop {
+  0%   { opacity: 0; transform: translate(-50%, 4px) scale(0.85); }
+  15%  { opacity: 1; transform: translate(-50%, -2px) scale(1.05); }
+  30%  { transform: translate(-50%, -6px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -22px) scale(1); }
+}
+
 @keyframes highlight-breathe {
   0%, 100% { opacity: 0.65; }
   50%      { opacity: 1; }
@@ -1096,9 +1158,21 @@ input {
     animation-name: float-score-reduced !important;
     animation-duration: 1.4s !important;
   }
+
+  /* Same problem as .floating-score above: give the scoreboard's delta bubble a held,
+     motionless fade instead of collapsing to an unreadable flash. */
+  .score-delta {
+    animation-name: score-delta-reduced !important;
+    animation-duration: 1.6s !important;
+  }
 }
 
 @keyframes float-score-reduced {
   0%, 80% { opacity: 1; transform: none; }
   100% { opacity: 0; transform: none; }
+}
+
+@keyframes score-delta-reduced {
+  0%, 80% { opacity: 1; transform: translate(-50%, -6px); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
 }
