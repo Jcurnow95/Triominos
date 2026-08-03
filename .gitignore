@@ -204,6 +204,11 @@ PublishScripts/
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
 *.nuget.props
+
+# This repo's own npm workspace root is named "packages/" (client, server, shared),
+# which the NuGet rule above matches by accident -- un-ignore it explicitly.
+!/packages/
+!/packages/**
 *.nuget.targets
 
 # Microsoft Azure Build Output
