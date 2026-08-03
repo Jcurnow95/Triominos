@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BonusType,
   CellCoord,
@@ -223,22 +223,103 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
   );
 }
 
+/** How long a "+N" delta bubble stays before fading; must match the CSS animation duration. */
+const SCORE_DELTA_MS = 1700;
+
 function Scoreboard({ game, selfPlayerId }: { game: PublicGameState; selfPlayerId: string }) {
   const currentId = game.round.turnOrder[game.round.currentPlayerIndex];
+
+  // Diff each player's score against what we last rendered so a change -- from either
+  // player, not just a floating popup over the board -- shows up right on their row.
+  const prevScores = useRef<Map<string, number>>(new Map());
+  const [deltas, setDeltas] = useState<Map<string, { amount: number; seq: number }>>(new Map());
+  const seqRef = useRef(0);
+
+  useEffect(() => {
+    const changes: [string, number][] = [];
+    for (const p of game.players) {
+      const prev = prevScores.current.get(p.id);
+      if (prev !== undefined && prev !== p.score) changes.push([p.id, p.score - prev]);
+      prevScores.current.set(p.id, p.score);
+    }
+    if (changes.length === 0) return;
+
+    setDeltas((cur) => {
+      const next = new Map(cur);
+      for (const [id, amount] of changes) {
+        seqRef.current += 1;
+        const seq = seqRef.current;
+        next.set(id, { amount, seq });
+        setTimeout(() => {
+          setDeltas((c) => {
+            if (c.get(id)?.seq !== seq) return c; // superseded by a newer change
+            const copy = new Map(c);
+            copy.delete(id);
+            return copy;
+          });
+        }, SCORE_DELTA_MS);
+      }
+      return next;
+    });
+  }, [game.players]);
+
+  const highScore = Math.max(...game.players.map((p) => p.score));
+  const leaders = game.players.length > 1 && highScore > 0 ? new Set(game.players.filter((p) => p.score === highScore).map((p) => p.id)) : new Set<string>();
+
   return (
     <div className="scoreboard">
       {game.round.turnOrder.map((id) => {
         const p = game.players.find((pl) => pl.id === id)!;
+        const delta = deltas.get(id);
+        const classNames = ['score-row'];
+        if (id === currentId && game.round.phase === 'playing') classNames.push('active');
+        if (leaders.has(id)) classNames.push('leader');
+
         return (
-          <div key={id} className={`score-row ${id === currentId && game.round.phase === 'playing' ? 'active' : ''}`}>
+          <div key={id} className={classNames.join(' ')}>
+            <span className="score-avatar" style={{ background: avatarColor(id) }} aria-hidden="true">
+              {p.name.trim().charAt(0).toUpperCase() || '?'}
+            </span>
             <span className={`status-dot ${p.connected ? 'online' : 'offline'}`} />
-            <span className="score-name">{p.name}{id === selfPlayerId ? ' (you)' : ''}</span>
+            <span className="score-name">
+              {p.name}
+              {id === selfPlayerId ? ' (you)' : ''}
+              {leaders.has(id) && <CrownIcon />}
+            </span>
             <span className="score-hand">{p.handCount} tiles</span>
-            <span className="score-points">{p.score}</span>
+            <span className="score-points-wrap">
+              <span className="score-points">{p.score}</span>
+              {delta && (
+                <span key={delta.seq} className={delta.amount >= 0 ? 'score-delta positive' : 'score-delta negative'}>
+                  {delta.amount >= 0 ? `+${delta.amount}` : delta.amount}
+                </span>
+              )}
+            </span>
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** Deterministic per-player colour so the same name/id always gets the same avatar hue. */
+function avatarColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return `hsl(${hash % 360}, 60%, 42%)`;
+}
+
+function CrownIcon() {
+  return (
+    <svg className="leader-crown" viewBox="0 0 24 24" width="13" height="13" aria-label="Leading" role="img">
+      <path
+        d="M3 8l4 3 5-6 5 6 4-3-1.5 10h-15L3 8z"
+        fill="var(--gold)"
+        stroke="var(--gold)"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
