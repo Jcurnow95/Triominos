@@ -40,6 +40,9 @@ export type GameEvent = {
 } | {
     type: 'game-end';
     winnerId: string;
+} | {
+    type: 'resigned';
+    playerId: string;
 };
 export type RoundPhase = 'awaiting-starter-choice' | 'playing' | 'round-ended';
 export interface StarterChoice {
@@ -94,6 +97,13 @@ export declare function applyNoMovePenalty(state: GameState, playerId: string): 
     roundEnded: boolean;
     gameEnded: boolean;
 };
+/**
+ * Concedes the whole match immediately, not just the current round -- there's no sane
+ * way to keep a round going with one player's tiles frozen on the board and no one able
+ * to act on their behalf. The win goes to whichever remaining player has the highest
+ * score (in a 2-player game that's simply the other player, regardless of who was ahead).
+ */
+export declare function applyResign(state: GameState, playerId: string): void;
 export declare function startNewGame(players: PlayerSetup[], rng?: () => number): GameState;
 export declare function startNextRound(state: GameState, rng?: () => number): void;
 export interface PublicPlayerState {

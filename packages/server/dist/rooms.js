@@ -27,8 +27,9 @@ export function createRoom(hostName, hostSocketId) {
 }
 const BOT_NAMES = ['Ada', 'Turing', 'Hopper', 'Lovelace', 'Babbage'];
 /** Creates a room already populated with computer opponents, for single-player games. */
-export function createSoloRoom(hostName, hostSocketId, botCount, difficulty) {
+export function createSoloRoom(hostName, hostSocketId, botCount, difficulty, fastAiMoves = false) {
     const { room, player } = createRoom(hostName, hostSocketId);
+    room.fastAiMoves = fastAiMoves;
     const count = Math.max(1, Math.min(3, botCount));
     for (let i = 0; i < count; i++) {
         room.players.push({

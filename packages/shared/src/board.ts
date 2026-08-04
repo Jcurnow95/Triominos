@@ -93,22 +93,14 @@ export function evaluateBonus(board: Board, cell: CellCoord, values: [number, nu
     if (occupiedCount === 5) return 'hexagon'; // this tile closes the ring of six
     if (occupiedCount === 0) continue;
 
-    // A tile only bridges if it touches a matching tile that it does NOT share a full
-    // edge with -- i.e. a group of occupied slots that doesn't reach either slot flanking
-    // us. A group flanking us on one or both sides is just an ordinary flush connection
-    // (however many previously-separate runs it happens to join), and must NOT count as
-    // a bridge -- that was the bug: once a real bridge sat at this vertex, every later
-    // tile that simply completed a neighboring gap here was mistaken for another bridge.
-    const flankNext = (selfPos + 1) % 6;
-    const flankPrev = (selfPos + 5) % 6;
-    for (let idx = 0; idx < 6; idx++) {
-      if (!occupied[idx] || occupied[(idx + 5) % 6]) continue; // not the start of a group
-      let touchesFlank = false;
-      for (let j = idx; occupied[j]; j = (j + 1) % 6) {
-        if (j === flankNext || j === flankPrev) touchesFlank = true;
-      }
-      if (!touchesFlank) bridge = true;
-    }
+    // A vertex only has one valid number, so every occupied ring slot inevitably matches
+    // our value -- that alone says nothing about whether we're bridging anything. What
+    // actually makes a bridge is touching the vertex without either side of us being
+    // flush against a neighbour: if EITHER immediate ring-neighbour is occupied, we're
+    // just an ordinary flush extension/fill, no matter what else happens to be occupied
+    // further round the ring (including tiles a genuine bridge already reached).
+    const sharesAnEdge = occupied[(selfPos + 1) % 6] || occupied[(selfPos + 5) % 6];
+    if (!sharesAnEdge) bridge = true;
   }
 
   return bridge ? 'bridge' : 'none';

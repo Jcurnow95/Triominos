@@ -2,6 +2,9 @@
   "name": "triominos",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "packages/shared",
     "packages/server",
@@ -11,6 +14,8 @@
     "dev:server": "npm run dev --workspace=packages/server",
     "dev:client": "npm run dev --workspace=packages/client",
     "test": "npm run test --workspace=packages/shared",
-    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/server && npm run build --workspace=packages/client"
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/server && npm run build --workspace=packages/client",
+    "start": "npm run start --workspace=packages/server",
+    "package:exe": "npm run build && npm run package:exe --workspace=packages/server"
   }
 }

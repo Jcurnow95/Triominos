@@ -1,9 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BotDifficulty, CellCoord, LobbyState, PublicGameState } from '@triominos/shared';
 import { getSocket } from './net/socket';
 import { clearSession, loadSession, saveSession } from './net/session';
 import { ThemePrefs, applyTheme, loadThemePrefs, saveThemePrefs } from './theme';
 import { GamePrefs, loadGamePrefs, saveGamePrefs } from './preferences';
+import {
+  playGameOver,
+  playGameWon,
+  playTileShuffle,
+  setMusicEnabled,
+  setMusicVolume,
+  setSfxEnabled,
+  setSfxVolume,
+  startGameMusic,
+  stopGameMusic,
+} from './sound';
 import { Home } from './pages/Home';
 import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
@@ -37,6 +48,43 @@ export default function App() {
   }, [gamePrefs]);
 
   useEffect(() => {
+    setSfxEnabled(gamePrefs.sfxEnabled);
+  }, [gamePrefs.sfxEnabled]);
+
+  useEffect(() => {
+    setSfxVolume(gamePrefs.sfxVolume);
+  }, [gamePrefs.sfxVolume]);
+
+  useEffect(() => {
+    setMusicEnabled(gamePrefs.musicEnabled);
+  }, [gamePrefs.musicEnabled]);
+
+  useEffect(() => {
+    setMusicVolume(gamePrefs.musicVolume);
+  }, [gamePrefs.musicVolume]);
+
+  // Background music runs for as long as we're on the game screen, in any round phase.
+  useEffect(() => {
+    if (phase === 'game' && gamePrefs.musicEnabled) startGameMusic();
+    else stopGameMusic();
+    return () => stopGameMusic();
+  }, [phase, gamePrefs.musicEnabled]);
+
+  // Fires once per game-over transition, not on every subsequent re-render.
+  const announcedGameOverRef = useRef(false);
+  useEffect(() => {
+    if (!game || !selfPlayerId) return;
+    if (!game.gameOver) {
+      announcedGameOverRef.current = false;
+      return;
+    }
+    if (announcedGameOverRef.current) return;
+    announcedGameOverRef.current = true;
+    if (game.winnerId === selfPlayerId) playGameWon();
+    else playGameOver();
+  }, [game, selfPlayerId]);
+
+  useEffect(() => {
     const socket = getSocket();
 
     socket.on('lobbyUpdate', (state) => {
@@ -46,6 +94,7 @@ export default function App() {
     socket.on('gameStarted', (state) => {
       setGame(state);
       setPhase('game');
+      playTileShuffle();
     });
     socket.on('gameUpdate', (state) => {
       setGame(state);
@@ -199,6 +248,7 @@ export default function App() {
         onChooseStarter={handleChooseStarter}
         onContinueRound={withRoomAck((roomCode, cb) => getSocket().emit('continueNextRound', { roomCode }, cb))}
         onPlayAgain={withRoomAck((roomCode, cb) => getSocket().emit('playAgain', { roomCode }, cb))}
+        onResign={withRoomAck((roomCode, cb) => getSocket().emit('resign', { roomCode }, cb))}
         onLeave={handleLeave}
       />
     );

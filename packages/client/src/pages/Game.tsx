@@ -13,6 +13,7 @@ import {
 import { Board, BoardHighlight, BoardTileView, FloatingScore } from '../components/Board';
 import { Rack, tileMatchesFilters } from '../components/Rack';
 import { SettingsMenu } from '../components/SettingsMenu';
+import { playBridge, playHexagon, playPass, playTilePlaced } from '../sound';
 import type { ThemePrefs } from '../theme';
 import type { GamePrefs } from '../preferences';
 
@@ -30,13 +31,15 @@ interface GameProps {
   onChooseStarter: (tileId: string) => void;
   onContinueRound: () => void;
   onPlayAgain: () => void;
+  onResign: () => void;
   onLeave: () => void;
 }
 
-export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onThemeChange, onGamePrefsChange, onPlace, onDraw, onPass, onChooseStarter, onContinueRound, onPlayAgain, onLeave }: GameProps) {
+export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onThemeChange, onGamePrefsChange, onPlace, onDraw, onPass, onChooseStarter, onContinueRound, onPlayAgain, onResign, onLeave }: GameProps) {
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
   const [resultsHidden, setResultsHidden] = useState(false);
   const [handFilters, setHandFilters] = useState<Set<number>>(new Set());
+  const [confirmingResign, setConfirmingResign] = useState(false);
 
   // Re-show the results whenever a new round ends or the game finishes, so dismissing
   // one recap never suppresses the next.
@@ -99,6 +102,29 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
     return null;
   }, [round.log]);
 
+  // Plays a sound for every new log entry -- tile placements (bridge/hexagon get their
+  // own fanfare instead of the plain placement sound) and passes -- for any player, not
+  // just us. `round.log` resets to empty at the start of each round, which the "grew"
+  // check below handles for free: a shorter log is never treated as new entries.
+  // undefined = "haven't seen this round's log yet" (skip replaying its history on mount).
+  const seenLogLengthRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const prevLength = seenLogLengthRef.current;
+    if (prevLength !== undefined) {
+      for (let i = prevLength; i < round.log.length; i++) {
+        const ev = round.log[i];
+        if (ev.type === 'placed') {
+          if (ev.score.bonusLabel === 'bridge') playBridge();
+          else if (ev.score.bonusLabel === 'hexagon') playHexagon();
+          else playTilePlaced();
+        } else if (ev.type === 'no-move-penalty') {
+          playPass();
+        }
+      }
+    }
+    seenLogLengthRef.current = round.log.length;
+  }, [round.log]);
+
   const boardTileViews: BoardTileView[] = boardTiles(round.board).map((t) => ({
     cell: t.cell,
     values: t.values,
@@ -131,12 +157,24 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
     <div className="game-page">
       <div className="game-header">
         <Scoreboard game={game} selfPlayerId={selfPlayerId} />
-        <SettingsMenu
-          themePrefs={themePrefs}
-          gamePrefs={gamePrefs}
-          onThemeChange={onThemeChange}
-          onGamePrefsChange={onGamePrefsChange}
-        />
+        <div className="header-actions">
+          {!game.gameOver && (
+            <button
+              className="resign-button"
+              onClick={() => setConfirmingResign(true)}
+              title="Resign"
+              aria-label="Resign"
+            >
+              <FlagIcon />
+            </button>
+          )}
+          <SettingsMenu
+            themePrefs={themePrefs}
+            gamePrefs={gamePrefs}
+            onThemeChange={onThemeChange}
+            onGamePrefsChange={onGamePrefsChange}
+          />
+        </div>
       </div>
 
       <div className="board-wrap">
@@ -217,6 +255,16 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
           onPlayAgain={onPlayAgain}
           onLeave={onLeave}
           onClose={() => setResultsHidden(true)}
+        />
+      )}
+
+      {confirmingResign && (
+        <ResignConfirmModal
+          onConfirm={() => {
+            setConfirmingResign(false);
+            onResign();
+          }}
+          onCancel={() => setConfirmingResign(false)}
         />
       )}
     </div>
@@ -320,6 +368,30 @@ function CrownIcon() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M5 21V4" strokeLinecap="round" />
+      <path d="M5 4h13l-3 4 3 4H5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ResignConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Resign the game?</h2>
+        <p>This ends the game right away and hands the win to whoever's ahead among the other players. You can&apos;t undo this.</p>
+        <div className="modal-actions">
+          <button className="danger" onClick={onConfirm}>Resign</button>
+          <button onClick={onCancel}>Keep playing</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -435,6 +507,8 @@ function describeEvent(ev: GameEvent, nameOf: (id: string) => string): string {
       return `Round ended -- ${nameOf(ev.winnerId)} came out ahead.`;
     case 'game-end':
       return `${nameOf(ev.winnerId)} won the game!`;
+    case 'resigned':
+      return `${nameOf(ev.playerId)} resigned.`;
     default:
       return '';
   }

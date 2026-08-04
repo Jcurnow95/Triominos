@@ -95,11 +95,28 @@ describe('evaluateBonus around a shared vertex', () => {
     expect(evaluateBonus(board, ring[1].cell, ring[1].values)).toBe('none');
   });
 
-  it('still scores a bridge when a flush connection also reaches a distant, unconnected group', () => {
-    // ring[1] is edge-adjacent to ring[0] (flush) but only point-adjacent to ring[3]
-    // (opposite side of the vertex) -- that second, non-flanking contact is a real bridge.
+  it('scores nothing for a tile flush on one side that also happens to match a distant tile', () => {
+    // Regression: every occupied ring slot inevitably carries the same value (a vertex
+    // only has one valid number), so "also matches a tile elsewhere in the ring" is true
+    // almost by definition once a vertex is busy -- it says nothing about whether *this*
+    // tile is bridging anything. ring[1] is flush against ring[0]; that ring[3] happens to
+    // sit on the far side, unconnected, doesn't change that ring[1] itself touches nothing
+    // except by a real edge. Scoring this as a bridge was the bug: once a genuine bridge
+    // (ring[3], placed with both flanks empty) sat at this vertex, every later tile that
+    // simply extended the fan next to it kept re-triggering the bonus.
     const board = boardWith([0, 3]);
-    expect(evaluateBonus(board, ring[1].cell, ring[1].values)).toBe('bridge');
+    expect(evaluateBonus(board, ring[1].cell, ring[1].values)).toBe('none');
+  });
+
+  it('scores a bridge only for the tile that actually spans the gap, not later flush neighbours', () => {
+    const board = boardWith([0]);
+    // ring[3] touches ring[0]'s value with both its own flanks (2 and 4) empty -- a
+    // genuine point-only bridge.
+    expect(evaluateBonus(board, ring[3].cell, ring[3].values), 'ring[3] bridges').toBe('bridge');
+    const withBridge = placeTile(board, 't3', ring[3].cell, ring[3].values);
+    // ring[4] is edge-flush against the bridge tile (ring[3]); it must not inherit the
+    // bonus just because ring[3]'s far side still isn't connected to ring[0..2].
+    expect(evaluateBonus(withBridge, ring[4].cell, ring[4].values), 'ring[4] is flush, not a bridge').toBe('none');
   });
 
   it('scores nothing for a plain two-tile edge match', () => {

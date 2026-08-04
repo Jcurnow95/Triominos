@@ -6,6 +6,7 @@ import {
   applyDrawFromWell,
   applyNoMovePenalty,
   applyPlaceTile,
+  applyResign,
   chooseBotAction,
   chooseStartingTile,
   currentPlayerId,
@@ -263,6 +264,20 @@ export function registerSocketHandlers(io: IOServer, socket: IOSocket): void {
     cb({ ok: true });
     broadcastGame(io, room, 'gameUpdate');
     void runBotTurns(io, room);
+  });
+
+  socket.on('resign', ({ roomCode }, cb) => {
+    const room = getRoom(roomCode);
+    if (!room?.game) return cb({ ok: false, error: 'Game not found' });
+    const player = room.players.find((p) => p.socketId === socket.id);
+    if (!player) return cb({ ok: false, error: 'Not in this room' });
+    try {
+      applyResign(room.game, player.id);
+      cb({ ok: true });
+      broadcastGame(io, room, 'gameUpdate');
+    } catch (err) {
+      cb({ ok: false, error: errorMessage(err) });
+    }
   });
 
   socket.on('disconnect', () => {

@@ -30,6 +30,7 @@ export interface ClientToServerEvents {
   chooseStarter: (payload: { roomCode: string; tileId: string }, cb: (res: { ok: true } | { ok: false; error: string }) => void) => void;
   continueNextRound: (payload: { roomCode: string }, cb: (res: { ok: true } | { ok: false; error: string }) => void) => void;
   playAgain: (payload: { roomCode: string }, cb: (res: { ok: true } | { ok: false; error: string }) => void) => void;
+  resign: (payload: { roomCode: string }, cb: (res: { ok: true } | { ok: false; error: string }) => void) => void;
 }
 
 /** Server -> client events. */

@@ -5,6 +5,7 @@ import {
   applyDrawFromWell,
   applyNoMovePenalty,
   applyPlaceTile,
+  applyResign,
   currentPlayerId,
   handSizeFor,
   startNewGame,
@@ -171,6 +172,50 @@ describe('draw cap house rule', () => {
       expect(res.roundEnded).toBe(false); // 3 tiles still in the well
     }
     expect(state.round.phase).toBe('playing');
+  });
+});
+
+describe('applyResign', () => {
+  function twoPlayerState(scores: [number, number]): GameState {
+    const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    return {
+      players: [
+        { id: 'p1', name: 'Alice', hand: [], score: scores[0], connected: true },
+        { id: 'p2', name: 'Bob', hand: [], score: scores[1], connected: true },
+      ],
+      round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [] },
+      gameOver: false,
+    };
+  }
+
+  it('ends the game immediately, awarding the win to the other player even if they were behind', () => {
+    const state = twoPlayerState([200, 50]); // Alice is winning on points
+    applyResign(state, 'p1'); // Alice quits anyway
+    expect(state.gameOver).toBe(true);
+    expect(state.winnerId).toBe('p2'); // Bob wins by forfeit, despite the lower score
+    expect(state.round.phase).toBe('round-ended');
+    expect(state.round.log.map((e) => e.type)).toEqual(['resigned', 'game-end']);
+  });
+
+  it('awards the highest-scoring remaining player in a 3+ player game', () => {
+    const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    const state: GameState = {
+      players: [
+        { id: 'p1', name: 'Alice', hand: [], score: 10, connected: true },
+        { id: 'p2', name: 'Bob', hand: [], score: 80, connected: true },
+        { id: 'p3', name: 'Cara', hand: [], score: 40, connected: true },
+      ],
+      round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2', 'p3'], currentPlayerIndex: 0, passStreak: 0, log: [] },
+      gameOver: false,
+    };
+    applyResign(state, 'p3');
+    expect(state.winnerId).toBe('p2');
+  });
+
+  it('refuses to resign a game that has already ended', () => {
+    const state = twoPlayerState([50, 50]);
+    applyResign(state, 'p1');
+    expect(() => applyResign(state, 'p2')).toThrow(/already over/i);
   });
 });
 

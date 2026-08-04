@@ -120,6 +120,14 @@ export interface ClientToServerEvents {
         ok: false;
         error: string;
     }) => void) => void;
+    resign: (payload: {
+        roomCode: string;
+    }, cb: (res: {
+        ok: true;
+    } | {
+        ok: false;
+        error: string;
+    }) => void) => void;
 }
 /** Server -> client events. */
 export interface ServerToClientEvents {

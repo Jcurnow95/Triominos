@@ -1,4 +1,4 @@
-import { applyDrawFromWell, applyNoMovePenalty, applyPlaceTile, chooseBotAction, chooseStartingTile, currentPlayerId, redactGameState, startNewGame, startNextRound, } from '@triominos/shared';
+import { applyDrawFromWell, applyNoMovePenalty, applyPlaceTile, applyResign, chooseBotAction, chooseStartingTile, currentPlayerId, redactGameState, startNewGame, startNextRound, } from '@triominos/shared';
 import { createRoom, createSoloRoom, getRoom, isBot, joinRoom, markDisconnected, rejoinRoom } from './rooms.js';
 function toLobbyState(room) {
     return {
@@ -32,8 +32,13 @@ function broadcastGame(io, room, event) {
 function errorMessage(err) {
     return err instanceof Error ? err.message : 'Unknown error';
 }
-/** Pause between bot moves so players can follow along. Lower it to speed up testing. */
-const BOT_THINK_MS = Number(process.env.BOT_THINK_MS ?? 900);
+/** Pause between bot moves so players can follow along. */
+const NORMAL_BOT_THINK_MS = Number(process.env.BOT_THINK_MS ?? 1800);
+/** Pause used when the room opts into the "fast AI moves" setting. */
+const FAST_BOT_THINK_MS = Number(process.env.FAST_BOT_THINK_MS ?? 500);
+function botThinkMs(room) {
+    return room.fastAiMoves ? FAST_BOT_THINK_MS : NORMAL_BOT_THINK_MS;
+}
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -63,7 +68,7 @@ async function runBotTurns(io, room) {
             const actor = room.players.find((p) => p.id === actorId);
             if (!actor || !isBot(actor))
                 return;
-            await sleep(BOT_THINK_MS);
+            await sleep(botThinkMs(room));
             if (room.game !== game)
                 return; // room was reset underneath us
             try {
@@ -103,9 +108,9 @@ export function registerSocketHandlers(io, socket) {
         cb({ ok: true, roomCode: room.code, sessionToken: player.sessionToken, playerId: player.id });
         broadcastLobby(io, room);
     });
-    socket.on('createSoloGame', ({ name, botCount, difficulty }, cb) => {
+    socket.on('createSoloGame', ({ name, botCount, difficulty, fastAiMoves }, cb) => {
         const trimmed = name.trim().slice(0, 24) || 'Player';
-        const { room, player } = createSoloRoom(trimmed, socket.id, botCount, difficulty);
+        const { room, player } = createSoloRoom(trimmed, socket.id, botCount, difficulty, fastAiMoves);
         socket.join(room.code);
         room.started = true;
         room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })));
@@ -246,6 +251,22 @@ export function registerSocketHandlers(io, socket) {
         cb({ ok: true });
         broadcastGame(io, room, 'gameUpdate');
         void runBotTurns(io, room);
+    });
+    socket.on('resign', ({ roomCode }, cb) => {
+        const room = getRoom(roomCode);
+        if (!room?.game)
+            return cb({ ok: false, error: 'Game not found' });
+        const player = room.players.find((p) => p.socketId === socket.id);
+        if (!player)
+            return cb({ ok: false, error: 'Not in this room' });
+        try {
+            applyResign(room.game, player.id);
+            cb({ ok: true });
+            broadcastGame(io, room, 'gameUpdate');
+        }
+        catch (err) {
+            cb({ ok: false, error: errorMessage(err) });
+        }
     });
     socket.on('disconnect', () => {
         const result = markDisconnected(socket.id);

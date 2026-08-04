@@ -366,3 +366,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Triominos: packaged standalone .exe build output (see packages/server/scripts/build-exe.mjs)
+/release/
+/packages/server/dist-exe/

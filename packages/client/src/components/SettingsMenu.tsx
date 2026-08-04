@@ -76,6 +76,24 @@ export function SettingsMenu({ themePrefs, gamePrefs, onThemeChange, onGamePrefs
                 </span>
               </span>
             </label>
+
+            <VolumeSetting
+              name="Sound effects"
+              hint="Tile placement, shuffle, win/lose sounds."
+              enabled={gamePrefs.sfxEnabled}
+              volume={gamePrefs.sfxVolume}
+              onEnabledChange={(sfxEnabled) => onGamePrefsChange({ ...gamePrefs, sfxEnabled })}
+              onVolumeChange={(sfxVolume) => onGamePrefsChange({ ...gamePrefs, sfxVolume })}
+            />
+
+            <VolumeSetting
+              name="Music"
+              hint="Background music while a game is in progress."
+              enabled={gamePrefs.musicEnabled}
+              volume={gamePrefs.musicVolume}
+              onEnabledChange={(musicEnabled) => onGamePrefsChange({ ...gamePrefs, musicEnabled })}
+              onVolumeChange={(musicVolume) => onGamePrefsChange({ ...gamePrefs, musicVolume })}
+            />
           </div>
 
           <div className="theme-section">
@@ -142,6 +160,47 @@ export function SettingsMenu({ themePrefs, gamePrefs, onThemeChange, onGamePrefs
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** A checkbox (on/off) paired with a 0-100 volume slider, e.g. for SFX or music. */
+function VolumeSetting({
+  name,
+  hint,
+  enabled,
+  volume,
+  onEnabledChange,
+  onVolumeChange,
+}: {
+  name: string;
+  hint: string;
+  enabled: boolean;
+  volume: number;
+  onEnabledChange: (enabled: boolean) => void;
+  onVolumeChange: (volume: number) => void;
+}) {
+  return (
+    <div className="volume-setting">
+      <label className="setting-row">
+        <input type="checkbox" checked={enabled} onChange={(e) => onEnabledChange(e.target.checked)} />
+        <span>
+          <span className="setting-name">{name}</span>
+          <span className="setting-hint">{hint}</span>
+        </span>
+      </label>
+      <div className="volume-slider-row">
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          disabled={!enabled}
+          onChange={(e) => onVolumeChange(Number(e.target.value))}
+          aria-label={`${name} volume`}
+        />
+        <span className="volume-value">{volume}</span>
+      </div>
     </div>
   );
 }

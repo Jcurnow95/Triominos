@@ -202,6 +202,30 @@ export function applyNoMovePenalty(state, playerId) {
     advanceTurn(round);
     return { roundEnded: false, gameEnded: false };
 }
+/**
+ * Concedes the whole match immediately, not just the current round -- there's no sane
+ * way to keep a round going with one player's tiles frozen on the board and no one able
+ * to act on their behalf. The win goes to whichever remaining player has the highest
+ * score (in a 2-player game that's simply the other player, regardless of who was ahead).
+ */
+export function applyResign(state, playerId) {
+    if (state.gameOver)
+        throw new Error('Game is already over');
+    if (!state.players.some((p) => p.id === playerId))
+        throw new Error('Not a player in this game');
+    const others = state.players.filter((p) => p.id !== playerId);
+    if (others.length === 0)
+        throw new Error('No opponents to resign to');
+    let winner = others[0];
+    for (const p of others)
+        if (p.score > winner.score)
+            winner = p;
+    state.round.log.push({ type: 'resigned', playerId });
+    state.round.phase = 'round-ended';
+    state.gameOver = true;
+    state.winnerId = winner.id;
+    state.round.log.push({ type: 'game-end', winnerId: winner.id });
+}
 function endRoundHandEmpty(state, winnerId) {
     let othersTotal = 0;
     for (const p of state.players) {
