@@ -1,4 +1,6 @@
-import type { LobbyState } from '@triominos/shared';
+import { useState } from 'react';
+import type { GameRules, LobbyState } from '@triominos/shared';
+import { GameRulesEditor } from '../components/GameRulesEditor';
 
 interface LobbyProps {
   lobby: LobbyState;
@@ -6,11 +8,13 @@ interface LobbyProps {
   busy: boolean;
   error: string | null;
   onStart: () => void;
+  onUpdateRules: (rules: GameRules) => void;
 }
 
-export function Lobby({ lobby, selfPlayerId, busy, error, onStart }: LobbyProps) {
+export function Lobby({ lobby, selfPlayerId, busy, error, onStart, onUpdateRules }: LobbyProps) {
   const isHost = lobby.hostId === selfPlayerId;
   const shareUrl = `${window.location.origin}${window.location.pathname}?room=${lobby.roomCode}`;
+  const [showRules, setShowRules] = useState(false);
 
   return (
     <div className="lobby-page">
@@ -36,6 +40,19 @@ export function Lobby({ lobby, selfPlayerId, busy, error, onStart }: LobbyProps)
           </li>
         ))}
       </ul>
+
+      {isHost ? (
+        <>
+          <button type="button" className="link-button" onClick={() => setShowRules((v) => !v)}>
+            {showRules ? '−' : '+'} Game settings
+          </button>
+          {showRules && <GameRulesEditor rules={lobby.rules} onChange={onUpdateRules} />}
+        </>
+      ) : (
+        <p className="rules-summary">
+          {`Playing to ${lobby.rules.winningScore} · ${lobby.rules.tileSets}× tile set${lobby.rules.tileSets > 1 ? 's' : ''} · draw up to ${lobby.rules.maxDrawsPerTurn} a turn`}
+        </p>
+      )}
 
       {isHost ? (
         <button className="primary" disabled={busy || lobby.players.length < 2} onClick={onStart}>

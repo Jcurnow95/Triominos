@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { DEFAULT_GAME_RULES, sanitizeGameRules } from '@triominos/shared';
 export function isBot(player) {
     return player.botDifficulty !== undefined;
 }
@@ -21,15 +22,23 @@ export function createRoom(hostName, hostSocketId) {
         socketId: hostSocketId,
         isHost: true,
     };
-    const room = { code, players: [player], started: false, createdAt: Date.now(), emptySince: null };
+    const room = {
+        code,
+        players: [player],
+        started: false,
+        createdAt: Date.now(),
+        emptySince: null,
+        rules: DEFAULT_GAME_RULES,
+    };
     rooms.set(code, room);
     return { room, player };
 }
 const BOT_NAMES = ['Ada', 'Turing', 'Hopper', 'Lovelace', 'Babbage'];
 /** Creates a room already populated with computer opponents, for single-player games. */
-export function createSoloRoom(hostName, hostSocketId, botCount, difficulty, fastAiMoves = false) {
+export function createSoloRoom(hostName, hostSocketId, botCount, difficulty, fastAiMoves = false, rules) {
     const { room, player } = createRoom(hostName, hostSocketId);
     room.fastAiMoves = fastAiMoves;
+    room.rules = sanitizeGameRules(rules);
     const count = Math.max(1, Math.min(3, botCount));
     for (let i = 0; i < count; i++) {
         room.players.push({

@@ -332,7 +332,7 @@ function FloatingScorePopup({ floating }: { floating: FloatingScore }) {
     <g transform={`translate(${x} ${y})`} aria-hidden="true">
       <g className="floating-score">
         {floating.playerName && (
-          <text className="floating-score-player" y={-16} textAnchor="middle">{floating.playerName}</text>
+          <text className="floating-score-player" y={-28} textAnchor="middle">{floating.playerName}</text>
         )}
         <text className="floating-score-points" textAnchor="middle">+{floating.points}</text>
         {label && <text className="floating-score-bonus" y={22} textAnchor="middle">{label}</text>}

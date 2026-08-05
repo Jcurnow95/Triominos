@@ -1,6 +1,7 @@
 import { emptyBoard, evaluateBonus, findLegalPlacements, hasAnyLegalPlacement, placeTile as placeBoardTile } from './board.js';
 import { cellKey } from './grid.js';
-import { HAND_EMPTY_BONUS, MAX_DRAWS_PER_TURN, NO_MOVE_PENALTY, WELL_DRAW_PENALTY, WINNING_SCORE, scorePlay, scoreStartingTile, scoreStartingTileNoTriple, } from './scoring.js';
+import { DEFAULT_GAME_RULES } from './rules.js';
+import { HAND_EMPTY_BONUS, NO_MOVE_PENALTY, WELL_DRAW_PENALTY, scorePlay, scoreStartingTile, scoreStartingTileNoTriple, } from './scoring.js';
 import { generateDeck, isTriple, shuffle, tileSum } from './tiles.js';
 export function handSizeFor(playerCount) {
     if (playerCount === 2)
@@ -17,8 +18,8 @@ function advanceTurn(round) {
     round.drawsThisTurn = 0;
 }
 /** True once the player has exhausted the well or hit this turn's draw cap. */
-export function mustPassInsteadOfDrawing(round) {
-    return round.well.length === 0 || round.drawsThisTurn >= MAX_DRAWS_PER_TURN;
+export function mustPassInsteadOfDrawing(round, maxDrawsPerTurn) {
+    return round.well.length === 0 || round.drawsThisTurn >= maxDrawsPerTurn;
 }
 function highestTripleAmong(players) {
     let best = null;
@@ -56,13 +57,14 @@ function openRoundWith(round, players, playerId, tile, hasTriple) {
     advanceTurn(round);
 }
 /**
- * Deals a fresh 56-tile deck directly into `players`' hands (scores carry over across
- * rounds, so `players` must be the live PlayerState array) and opens the round. May
- * land in 'awaiting-starter-choice' if one player holds both the overall-highest
- * triple and 0-0-0 -- the rulebook lets them pick which to open with.
+ * Deals a fresh deck (one shared deck per `rules.tileSets` standard sets) directly into
+ * `players`' hands (scores carry over across rounds, so `players` must be the live
+ * PlayerState array) and opens the round. May land in 'awaiting-starter-choice' if one
+ * player holds both the overall-highest triple and 0-0-0 -- the rulebook lets them pick
+ * which to open with.
  */
-export function startRound(players, roundNumber, rng = Math.random) {
-    const deck = shuffle(generateDeck(), rng);
+export function startRound(players, roundNumber, rules = DEFAULT_GAME_RULES, rng = Math.random) {
+    const deck = shuffle(generateDeck(rules.tileSets), rng);
     const size = handSizeFor(players.length);
     let cursor = 0;
     for (const p of players) {
@@ -158,8 +160,8 @@ export function applyDrawFromWell(state, playerId) {
     if (hasAnyLegalPlacement(player.hand, round.board)) {
         throw new Error('You have a legal move; you cannot draw');
     }
-    if (round.drawsThisTurn >= MAX_DRAWS_PER_TURN) {
-        throw new Error(`You have already drawn ${MAX_DRAWS_PER_TURN} tiles this turn; pass instead`);
+    if (round.drawsThisTurn >= state.rules.maxDrawsPerTurn) {
+        throw new Error(`You have already drawn ${state.rules.maxDrawsPerTurn} tiles this turn; pass instead`);
     }
     if (round.well.length === 0) {
         return { tile: null, wellEmpty: true };
@@ -179,8 +181,8 @@ export function applyNoMovePenalty(state, playerId) {
         throw new Error('Round is not accepting moves');
     if (currentPlayerId(round) !== playerId)
         throw new Error('Not your turn');
-    if (!mustPassInsteadOfDrawing(round)) {
-        throw new Error(`Draw from the well first (up to ${MAX_DRAWS_PER_TURN} tiles a turn)`);
+    if (!mustPassInsteadOfDrawing(round, state.rules.maxDrawsPerTurn)) {
+        throw new Error(`Draw from the well first (up to ${state.rules.maxDrawsPerTurn} tiles a turn)`);
     }
     const player = state.players.find((p) => p.id === playerId);
     if (hasAnyLegalPlacement(player.hand, round.board)) {
@@ -261,7 +263,7 @@ function endRoundBlocked(state) {
     return { [winnerId]: delta };
 }
 function checkGameOver(state) {
-    const anyContender = state.players.some((p) => p.score >= WINNING_SCORE);
+    const anyContender = state.players.some((p) => p.score >= state.rules.winningScore);
     if (!anyContender)
         return false;
     let winner = state.players[0];
@@ -273,25 +275,28 @@ function checkGameOver(state) {
     state.round.log.push({ type: 'game-end', winnerId: winner.id });
     return true;
 }
-export function startNewGame(players, rng = Math.random) {
+export function startNewGame(players, rules = DEFAULT_GAME_RULES, rng = Math.random) {
     const playerStates = players.map((p) => ({ id: p.id, name: p.name, hand: [], score: 0, connected: true }));
     const state = {
         players: playerStates,
-        round: startRound(playerStates, 1, rng),
+        round: startRound(playerStates, 1, rules, rng),
         gameOver: false,
+        rules,
     };
     return state;
 }
 export function startNextRound(state, rng = Math.random) {
-    state.round = startRound(state.players, state.round.roundNumber + 1, rng);
+    state.round = startRound(state.players, state.round.roundNumber + 1, state.rules, rng);
 }
 /** Strips other players' hands and the well's contents so a viewer only sees what
- *  they're allowed to: their own hand, everyone's hand *count*, and the well size. */
+ *  they're allowed to: their own hand, everyone's hand *count*, and the well size. The
+ *  rules themselves aren't secret, so they pass through unredacted. */
 export function redactGameState(state, viewerId) {
     const { well, ...roundRest } = state.round;
     return {
         gameOver: state.gameOver,
         winnerId: state.winnerId,
+        rules: state.rules,
         players: state.players.map((p) => ({
             id: p.id,
             name: p.name,

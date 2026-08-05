@@ -1,4 +1,4 @@
-import { BotDifficulty, GameState } from '@triominos/shared';
+import { BotDifficulty, GameRules, GameState } from '@triominos/shared';
 export interface RoomPlayer {
     id: string;
     name: string;
@@ -19,6 +19,8 @@ export interface Room {
     botRunning?: boolean;
     /** When true, bots pause only briefly between moves instead of the readable default. */
     fastAiMoves?: boolean;
+    /** Score to win, tile set count, draw cap, etc. Editable by the host until the game starts. */
+    rules: GameRules;
 }
 export declare function isBot(player: RoomPlayer): boolean;
 export declare function createRoom(hostName: string, hostSocketId: string): {
@@ -26,7 +28,7 @@ export declare function createRoom(hostName: string, hostSocketId: string): {
     player: RoomPlayer;
 };
 /** Creates a room already populated with computer opponents, for single-player games. */
-export declare function createSoloRoom(hostName: string, hostSocketId: string, botCount: number, difficulty: BotDifficulty, fastAiMoves?: boolean): {
+export declare function createSoloRoom(hostName: string, hostSocketId: string, botCount: number, difficulty: BotDifficulty, fastAiMoves?: boolean, rules?: Partial<GameRules>): {
     room: Room;
     player: RoomPlayer;
 };

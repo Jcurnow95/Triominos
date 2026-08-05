@@ -10,6 +10,7 @@ import {
   currentPlayerId,
   startNewGame,
 } from '../src/gameState.js';
+import { DEFAULT_GAME_RULES } from '../src/rules.js';
 
 function seededRng(seed: number): () => number {
   let a = seed;
@@ -38,6 +39,7 @@ describe('chooseBotAction basics', () => {
         turnOrder: ['bot', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [],
       },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
     expect(chooseBotAction(state, 'bot').type).toBe('draw');
   });
@@ -54,6 +56,7 @@ describe('chooseBotAction basics', () => {
         turnOrder: ['bot', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [],
       },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
     expect(chooseBotAction(state, 'bot').type).toBe('pass');
   });
@@ -74,6 +77,7 @@ describe('chooseBotAction basics', () => {
         log: [],
       },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
     const action = chooseBotAction(state, 'bot');
     expect(action).toEqual({ type: 'choose-starter', tileId: '0-0-0' });
@@ -83,6 +87,7 @@ describe('chooseBotAction basics', () => {
     for (const difficulty of DIFFICULTIES) {
       const state = startNewGame(
         [{ id: 'bot', name: 'Bot' }, { id: 'p2', name: 'Human' }],
+        DEFAULT_GAME_RULES,
         seededRng(11),
       );
       if (state.round.phase !== 'playing') continue;
@@ -103,6 +108,7 @@ describe('bot-vs-bot full round', () => {
   function playRound(difficulty: BotDifficulty, seed: number): GameState {
     const state = startNewGame(
       [{ id: 'a', name: 'Bot A' }, { id: 'b', name: 'Bot B' }, { id: 'c', name: 'Bot C' }],
+      DEFAULT_GAME_RULES,
       seededRng(seed),
     );
     const rng = seededRng(seed + 1000);

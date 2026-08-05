@@ -1,6 +1,7 @@
 import { CellCoord } from './grid.js';
 import { BotDifficulty } from './bot.js';
 import { PublicGameState } from './gameState.js';
+import { GameRules } from './rules.js';
 export interface RoomPlayerInfo {
     id: string;
     name: string;
@@ -13,6 +14,7 @@ export interface LobbyState {
     players: RoomPlayerInfo[];
     hostId: string;
     started: boolean;
+    rules: GameRules;
 }
 /** Client -> server events. */
 export interface ClientToServerEvents {
@@ -32,6 +34,7 @@ export interface ClientToServerEvents {
         botCount: number;
         difficulty: BotDifficulty;
         fastAiMoves?: boolean;
+        rules?: Partial<GameRules>;
     }, cb: (res: {
         ok: true;
         roomCode: string;
@@ -55,6 +58,15 @@ export interface ClientToServerEvents {
     rejoinRoom: (payload: {
         roomCode: string;
         sessionToken: string;
+    }, cb: (res: {
+        ok: true;
+    } | {
+        ok: false;
+        error: string;
+    }) => void) => void;
+    updateGameRules: (payload: {
+        roomCode: string;
+        rules: Partial<GameRules>;
     }, cb: (res: {
         ok: true;
     } | {

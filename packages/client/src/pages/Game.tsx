@@ -3,7 +3,6 @@ import {
   BonusType,
   CellCoord,
   GameEvent,
-  MAX_DRAWS_PER_TURN,
   PublicGameState,
   boardTiles,
   cellKey,
@@ -77,7 +76,7 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
   const hasAnyMove = hasAnyLegalPlacement(myHand, round.board);
   // House rule: up to 3 draws a turn, then you may take the -10 and pass even if the
   // well still has tiles.
-  const canStillDraw = round.wellCount > 0 && round.drawsThisTurn < MAX_DRAWS_PER_TURN;
+  const canStillDraw = round.wellCount > 0 && round.drawsThisTurn < game.rules.maxDrawsPerTurn;
 
   // With the assist off -- or when it isn't your turn -- every tile is shown identically,
   // leaving it to the player to read the board and work out which tiles fit. Realism mode
@@ -222,10 +221,14 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
               )}
             </span>
             <span className="well-count">Well: {round.wellCount} tiles</span>
+            <span className="rules-summary" title="This game's settings">
+              Playing to {game.rules.winningScore}
+              {game.rules.tileSets > 1 && ` · ${game.rules.tileSets}× tiles`}
+            </span>
             {isMyTurn && !hasAnyMove && canStillDraw && (
               <button className="primary" onClick={onDraw}>
                 Draw from well (-5)
-                <span className="btn-sub">{round.drawsThisTurn}/{MAX_DRAWS_PER_TURN} drawn</span>
+                <span className="btn-sub">{round.drawsThisTurn}/{game.rules.maxDrawsPerTurn} drawn</span>
               </button>
             )}
             {isMyTurn && !hasAnyMove && !canStillDraw && (
@@ -354,7 +357,13 @@ function Scoreboard({ game, selfPlayerId }: { game: PublicGameState; selfPlayerI
               {id === selfPlayerId ? ' (you)' : ''}
               {leaders.has(id) && <CrownIcon />}
             </span>
-            <span className="score-hand">{p.handCount} tiles</span>
+            <span
+              className={p.handCount <= 2 ? 'score-hand low' : 'score-hand'}
+              title={`${p.handCount} tile${p.handCount === 1 ? '' : 's'} left`}
+            >
+              <HandTileIcon />
+              {p.handCount}
+            </span>
             <span className="score-points-wrap">
               <span className="score-points">{p.score}</span>
               {delta && (
@@ -375,6 +384,15 @@ function avatarColor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return `hsl(${hash % 360}, 60%, 42%)`;
+}
+
+/** A tiny filled triangle, echoing the game's own tile shape, next to each hand count. */
+function HandTileIcon() {
+  return (
+    <svg className="hand-tile-icon" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+      <path d="M12 3 L21 20 L3 20 Z" />
+    </svg>
+  );
 }
 
 function CrownIcon() {
