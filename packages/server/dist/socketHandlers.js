@@ -1,4 +1,4 @@
-import { applyDrawFromWell, applyNoMovePenalty, applyPlaceTile, applyResign, chooseBotAction, chooseStartingTile, currentPlayerId, redactGameState, startNewGame, startNextRound, } from '@triominos/shared';
+import { applyDrawFromWell, applyNoMovePenalty, applyPlaceTile, applyResign, chooseBotAction, chooseStartingTile, currentPlayerId, redactGameState, sanitizeGameRules, startNewGame, startNextRound, } from '@triominos/shared';
 import { createRoom, createSoloRoom, getRoom, isBot, joinRoom, markDisconnected, rejoinRoom } from './rooms.js';
 function toLobbyState(room) {
     return {
@@ -12,6 +12,7 @@ function toLobbyState(room) {
             isHost: p.isHost,
             isBot: isBot(p),
         })),
+        rules: room.rules,
     };
 }
 function broadcastLobby(io, room) {
@@ -108,12 +109,12 @@ export function registerSocketHandlers(io, socket) {
         cb({ ok: true, roomCode: room.code, sessionToken: player.sessionToken, playerId: player.id });
         broadcastLobby(io, room);
     });
-    socket.on('createSoloGame', ({ name, botCount, difficulty, fastAiMoves }, cb) => {
+    socket.on('createSoloGame', ({ name, botCount, difficulty, fastAiMoves, rules }, cb) => {
         const trimmed = name.trim().slice(0, 24) || 'Player';
-        const { room, player } = createSoloRoom(trimmed, socket.id, botCount, difficulty, fastAiMoves);
+        const { room, player } = createSoloRoom(trimmed, socket.id, botCount, difficulty, fastAiMoves, rules);
         socket.join(room.code);
         room.started = true;
-        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })));
+        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })), room.rules);
         cb({ ok: true, roomCode: room.code, sessionToken: player.sessionToken, playerId: player.id });
         broadcastGame(io, room, 'gameStarted');
         void runBotTurns(io, room);
@@ -140,6 +141,19 @@ export function registerSocketHandlers(io, socket) {
             void runBotTurns(io, result.room);
         }
     });
+    socket.on('updateGameRules', ({ roomCode, rules }, cb) => {
+        const room = getRoom(roomCode);
+        if (!room)
+            return cb({ ok: false, error: 'Room not found' });
+        const requester = room.players.find((p) => p.socketId === socket.id);
+        if (!requester?.isHost)
+            return cb({ ok: false, error: 'Only the host can change the rules' });
+        if (room.started)
+            return cb({ ok: false, error: 'Game already started' });
+        room.rules = sanitizeGameRules({ ...room.rules, ...rules });
+        cb({ ok: true });
+        broadcastLobby(io, room);
+    });
     socket.on('startGame', ({ roomCode }, cb) => {
         const room = getRoom(roomCode);
         if (!room)
@@ -152,7 +166,7 @@ export function registerSocketHandlers(io, socket) {
         if (room.started)
             return cb({ ok: false, error: 'Game already started' });
         room.started = true;
-        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })));
+        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })), room.rules);
         cb({ ok: true });
         broadcastGame(io, room, 'gameStarted');
         void runBotTurns(io, room);
@@ -246,8 +260,8 @@ export function registerSocketHandlers(io, socket) {
             return cb({ ok: false, error: 'Not in this room' });
         if (!room.game.gameOver)
             return cb({ ok: false, error: 'Game is still in progress' });
-        // Same seats and names, scores back to zero.
-        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })));
+        // Same seats, names, and rules, scores back to zero.
+        room.game = startNewGame(room.players.map((p) => ({ id: p.id, name: p.name })), room.rules);
         cb({ ok: true });
         broadcastGame(io, room, 'gameUpdate');
         void runBotTurns(io, room);

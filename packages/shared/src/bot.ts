@@ -20,10 +20,10 @@ interface ScoredMove {
 
 /** Tiles that could still be in an opponent's hand or the well: the full deck minus
  *  what's on the board and what the bot holds. Inferring from public information only. */
-function unseenTiles(board: Board, ownHand: Tile[]): Tile[] {
+function unseenTiles(board: Board, ownHand: Tile[], tileSets: number): Tile[] {
   const known = new Set<string>(boardTiles(board).map((t) => t.tileId));
   for (const t of ownHand) known.add(t.id);
-  return generateDeck().filter((t) => !known.has(t.id));
+  return generateDeck(tileSets).filter((t) => !known.has(t.id));
 }
 
 /** Best single-play score any unseen tile could take off the given board. Used by the
@@ -58,7 +58,14 @@ function pickRandom<T>(items: T[], rng: () => number): T {
 // Only the strongest few candidates get the expensive opponent-reply analysis.
 const HARD_CANDIDATE_LIMIT = 6;
 
-function chooseMove(moves: ScoredMove[], board: Board, hand: Tile[], difficulty: BotDifficulty, rng: () => number): ScoredMove {
+function chooseMove(
+  moves: ScoredMove[],
+  board: Board,
+  hand: Tile[],
+  difficulty: BotDifficulty,
+  rng: () => number,
+  tileSets: number,
+): ScoredMove {
   if (difficulty === 'easy') {
     return pickRandom(moves, rng);
   }
@@ -75,7 +82,7 @@ function chooseMove(moves: ScoredMove[], board: Board, hand: Tile[], difficulty:
   // weakest possible reply.
   const ranked = [...moves].sort((a, b) => b.immediate - a.immediate || tileSum(b.tile) - tileSum(a.tile));
   const candidates = ranked.slice(0, HARD_CANDIDATE_LIMIT);
-  const unseen = unseenTiles(board, hand);
+  const unseen = unseenTiles(board, hand, tileSets);
 
   let best = candidates[0];
   let bestValue = -Infinity;
@@ -128,9 +135,9 @@ export function chooseBotAction(
 
   const moves = collectMoves(player.hand, round.board);
   if (moves.length === 0) {
-    return mustPassInsteadOfDrawing(round) ? { type: 'pass' } : { type: 'draw' };
+    return mustPassInsteadOfDrawing(round, state.rules.maxDrawsPerTurn) ? { type: 'pass' } : { type: 'draw' };
   }
 
-  const move = chooseMove(moves, round.board, player.hand, difficulty, rng);
+  const move = chooseMove(moves, round.board, player.hand, difficulty, rng, state.rules.tileSets);
   return { type: 'place', tileId: move.tile.id, cell: move.placement.cell };
 }

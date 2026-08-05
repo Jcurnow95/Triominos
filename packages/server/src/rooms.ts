@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { BotDifficulty, GameState } from '@triominos/shared';
+import { BotDifficulty, DEFAULT_GAME_RULES, GameRules, GameState, sanitizeGameRules } from '@triominos/shared';
 
 export interface RoomPlayer {
   id: string;
@@ -22,6 +22,8 @@ export interface Room {
   botRunning?: boolean;
   /** When true, bots pause only briefly between moves instead of the readable default. */
   fastAiMoves?: boolean;
+  /** Score to win, tile set count, draw cap, etc. Editable by the host until the game starts. */
+  rules: GameRules;
 }
 
 export function isBot(player: RoomPlayer): boolean {
@@ -50,7 +52,14 @@ export function createRoom(hostName: string, hostSocketId: string): { room: Room
     socketId: hostSocketId,
     isHost: true,
   };
-  const room: Room = { code, players: [player], started: false, createdAt: Date.now(), emptySince: null };
+  const room: Room = {
+    code,
+    players: [player],
+    started: false,
+    createdAt: Date.now(),
+    emptySince: null,
+    rules: DEFAULT_GAME_RULES,
+  };
   rooms.set(code, room);
   return { room, player };
 }
@@ -64,9 +73,11 @@ export function createSoloRoom(
   botCount: number,
   difficulty: BotDifficulty,
   fastAiMoves = false,
+  rules?: Partial<GameRules>,
 ): { room: Room; player: RoomPlayer } {
   const { room, player } = createRoom(hostName, hostSocketId);
   room.fastAiMoves = fastAiMoves;
+  room.rules = sanitizeGameRules(rules);
   const count = Math.max(1, Math.min(3, botCount));
   for (let i = 0; i < count; i++) {
     room.players.push({

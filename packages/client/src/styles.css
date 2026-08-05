@@ -216,6 +216,23 @@ input {
   min-height: 1.2em;
 }
 
+.rules-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rules-editor .option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rules-summary {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
 .error-text {
   color: var(--bad);
   animation: shake 0.35s ease;
@@ -667,7 +684,29 @@ input {
 }
 
 .score-hand {
-  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hand-tile-icon {
+  fill: currentColor;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+/* Two tiles or fewer -- this player could end the round on their next play. */
+.score-hand.low {
+  background: color-mix(in srgb, var(--bad) 30%, transparent);
+  color: var(--bad);
+  animation: hand-low-pulse 1.6s ease-in-out infinite;
 }
 
 .score-points-wrap {
@@ -1268,6 +1307,11 @@ button.danger {
 @keyframes highlight-breathe {
   0%, 100% { opacity: 0.65; }
   50%      { opacity: 1; }
+}
+
+@keyframes hand-low-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
 
 @keyframes rack-in {

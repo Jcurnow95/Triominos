@@ -17,6 +17,21 @@ describe('generateDeck', () => {
   it('sums values correctly', () => {
     expect(tileSum({ id: '1-4-5', values: [1, 4, 5] })).toBe(10);
   });
+
+  it('combines multiple sets into one deck with unique, disambiguated ids', () => {
+    const deck = generateDeck(3);
+    expect(deck).toHaveLength(168);
+    expect(new Set(deck.map((t) => t.id)).size).toBe(168);
+    // Every tile's values still appear exactly 3 times (one per set).
+    const key = (t: { values: [number, number, number] }) => t.values.join('-');
+    const counts = new Map<string, number>();
+    for (const t of deck) counts.set(key(t), (counts.get(key(t)) ?? 0) + 1);
+    expect([...counts.values()]).toEqual(Array(56).fill(3));
+  });
+
+  it('setCount 1 keeps the original bare ids', () => {
+    expect(generateDeck(1)).toEqual(generateDeck());
+  });
 });
 
 describe('tileOrientations', () => {

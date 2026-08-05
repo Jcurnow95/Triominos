@@ -10,6 +10,7 @@ import {
   handSizeFor,
   startNewGame,
 } from '../src/gameState.js';
+import { DEFAULT_GAME_RULES } from '../src/rules.js';
 
 // Deterministic PRNG (mulberry32) so dealt hands are reproducible across runs.
 function seededRng(seed: number): () => number {
@@ -37,6 +38,7 @@ describe('startNewGame', () => {
   it('deals all 56 tiles between hands, well, and the opening board tile', () => {
     const state = startNewGame(
       [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }],
+      DEFAULT_GAME_RULES,
       seededRng(42),
     );
     const handTotal = state.players.reduce((s, p) => s + p.hand.length, 0);
@@ -48,6 +50,7 @@ describe('startNewGame', () => {
   it('awards the opening player a nonzero score and sets a valid current turn', () => {
     const state = startNewGame(
       [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }],
+      DEFAULT_GAME_RULES,
       seededRng(7),
     );
     if (state.round.phase === 'awaiting-starter-choice') return; // rare edge case, covered separately
@@ -80,6 +83,7 @@ describe('applyPlaceTile', () => {
         log: [],
       },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
 
     const result = applyPlaceTile(state, 'p1', '4-4-5', placement.cell);
@@ -99,6 +103,7 @@ describe('applyPlaceTile', () => {
       ],
       round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2'], currentPlayerIndex: 1, passStreak: 0, log: [] },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
     expect(() => applyPlaceTile(state, 'p1', '4-4-5', { q: 0, r: -1, orient: 'up' })).toThrow(/turn/i);
   });
@@ -122,6 +127,7 @@ describe('draw cap house rule', () => {
         turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, drawsThisTurn: 0, log: [],
       },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
   }
 
@@ -185,6 +191,7 @@ describe('applyResign', () => {
       ],
       round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [] },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
   }
 
@@ -207,6 +214,7 @@ describe('applyResign', () => {
       ],
       round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2', 'p3'], currentPlayerIndex: 0, passStreak: 0, log: [] },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
     applyResign(state, 'p3');
     expect(state.winnerId).toBe('p2');
@@ -216,6 +224,62 @@ describe('applyResign', () => {
     const state = twoPlayerState([50, 50]);
     applyResign(state, 'p1');
     expect(() => applyResign(state, 'p2')).toThrow(/already over/i);
+  });
+});
+
+describe('GameRules', () => {
+  it('deals from a bigger combined deck when tileSets > 1', () => {
+    const state = startNewGame(
+      [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }],
+      { ...DEFAULT_GAME_RULES, tileSets: 2 },
+      seededRng(1),
+    );
+    const handTotal = state.players.reduce((s, p) => s + p.hand.length, 0);
+    const boardTotal = Object.keys(state.round.board).length;
+    expect(handTotal + state.round.well.length + boardTotal).toBe(112);
+  });
+
+  it('ends the game at a custom winning score instead of the 400 default', () => {
+    const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    const winningTile = { id: '4-4-5', values: [4, 4, 5] as [number, number, number] };
+    const [placement] = findLegalPlacements(winningTile, board);
+    const state: GameState = {
+      players: [
+        { id: 'p1', name: 'Alice', hand: [winningTile], score: 90, connected: true },
+        { id: 'p2', name: 'Bob', hand: [{ id: '0-1-2', values: [0, 1, 2] }], score: 0, connected: true },
+      ],
+      round: {
+        roundNumber: 1, phase: 'playing', board, well: [],
+        turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [],
+      },
+      gameOver: false,
+      rules: { ...DEFAULT_GAME_RULES, winningScore: 100 },
+    };
+    // 90 + (13 base + 25 going-out + 3 stranded) comfortably clears the 100-point target.
+    const result = applyPlaceTile(state, 'p1', '4-4-5', placement.cell);
+    expect(result.gameEnded).toBe(true);
+    expect(state.gameOver).toBe(true);
+    expect(state.winnerId).toBe('p1');
+  });
+
+  it('honors a custom max-draws-per-turn instead of the default 3', () => {
+    const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    const well = Array.from({ length: 10 }, (_, i) => ({ id: `w${i}`, values: [0, 0, 1] as [number, number, number] }));
+    const state: GameState = {
+      players: [
+        { id: 'p1', name: 'Alice', hand: [{ id: '0-1-2', values: [0, 1, 2] }], score: 0, connected: true },
+        { id: 'p2', name: 'Bob', hand: [{ id: '0-0-1', values: [0, 0, 1] }], score: 0, connected: true },
+      ],
+      round: {
+        roundNumber: 1, phase: 'playing', board, well,
+        turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, drawsThisTurn: 0, log: [],
+      },
+      gameOver: false,
+      rules: { ...DEFAULT_GAME_RULES, maxDrawsPerTurn: 1 },
+    };
+    applyDrawFromWell(state, 'p1');
+    expect(() => applyDrawFromWell(state, 'p1')).toThrow(/already drawn/i);
+    expect(() => applyNoMovePenalty(state, 'p1')).not.toThrow();
   });
 });
 
@@ -229,6 +293,7 @@ describe('applyNoMovePenalty (blocked game)', () => {
       ],
       round: { roundNumber: 1, phase: 'playing', board, well: [], turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, log: [] },
       gameOver: false,
+      rules: DEFAULT_GAME_RULES,
     };
 
     const first = applyNoMovePenalty(state, 'p1');

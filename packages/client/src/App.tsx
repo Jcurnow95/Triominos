@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BotDifficulty, CellCoord, LobbyState, PublicGameState } from '@triominos/shared';
+import type { BotDifficulty, CellCoord, GameRules, LobbyState, PublicGameState } from '@triominos/shared';
 import { getSocket } from './net/socket';
 import { clearSession, loadSession, saveSession } from './net/session';
 import { ThemePrefs, applyTheme, loadThemePrefs, saveThemePrefs } from './theme';
@@ -138,10 +138,10 @@ export default function App() {
     });
   }
 
-  function handleCreateSolo(name: string, botCount: number, difficulty: BotDifficulty) {
+  function handleCreateSolo(name: string, botCount: number, difficulty: BotDifficulty, rules: GameRules) {
     setBusy(true);
     setError(null);
-    getSocket().emit('createSoloGame', { name, botCount, difficulty, fastAiMoves: gamePrefs.fastAiMoves }, (res) => {
+    getSocket().emit('createSoloGame', { name, botCount, difficulty, fastAiMoves: gamePrefs.fastAiMoves, rules }, (res) => {
       setBusy(false);
       if (!res.ok) return setError(res.error);
       saveSession({ roomCode: res.roomCode, sessionToken: res.sessionToken, playerId: res.playerId, name });
@@ -168,6 +168,14 @@ export default function App() {
     setError(null);
     getSocket().emit('startGame', { roomCode }, (res) => {
       setBusy(false);
+      if (!res.ok) setError(res.error);
+    });
+  }
+
+  function handleUpdateRules(rules: GameRules) {
+    if (!roomCode) return;
+    setError(null);
+    getSocket().emit('updateGameRules', { roomCode, rules }, (res) => {
       if (!res.ok) setError(res.error);
     });
   }
@@ -243,7 +251,16 @@ export default function App() {
   }
 
   if (phase === 'lobby' && lobby) {
-    return <Lobby lobby={lobby} selfPlayerId={selfPlayerId} busy={busy} error={error} onStart={handleStart} />;
+    return (
+      <Lobby
+        lobby={lobby}
+        selfPlayerId={selfPlayerId}
+        busy={busy}
+        error={error}
+        onStart={handleStart}
+        onUpdateRules={handleUpdateRules}
+      />
+    );
   }
 
   if (phase === 'game' && game) {

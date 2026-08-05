@@ -1,6 +1,8 @@
 import { FormEvent, useMemo, useState } from 'react';
-import type { BotDifficulty, CellCoord } from '@triominos/shared';
+import type { BotDifficulty, CellCoord, GameRules } from '@triominos/shared';
+import { DEFAULT_GAME_RULES } from '@triominos/shared';
 import { SettingsMenu } from '../components/SettingsMenu';
+import { GameRulesEditor } from '../components/GameRulesEditor';
 import { TileFace } from '../components/Board';
 import { cellPixelVertices } from '../geometry';
 import type { ThemePrefs } from '../theme';
@@ -18,7 +20,7 @@ interface HomeProps {
   onGamePrefsChange: (prefs: GamePrefs) => void;
   onCreate: (name: string) => void;
   onJoin: (name: string, roomCode: string) => void;
-  onCreateSolo: (name: string, botCount: number, difficulty: BotDifficulty) => void;
+  onCreateSolo: (name: string, botCount: number, difficulty: BotDifficulty, rules: GameRules) => void;
   onPuzzleMode: () => void;
 }
 
@@ -34,6 +36,8 @@ export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onTh
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [botCount, setBotCount] = useState(1);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('normal');
+  const [rules, setRules] = useState<GameRules>(DEFAULT_GAME_RULES);
+  const [showRules, setShowRules] = useState(false);
 
   const nameReady = name.trim().length > 0;
 
@@ -120,10 +124,15 @@ export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onTh
             <p className="hint">{DIFFICULTIES.find((d) => d.value === difficulty)!.blurb}</p>
           </div>
 
+          <button type="button" className="link-button" onClick={() => setShowRules((v) => !v)}>
+            {showRules ? '−' : '+'} Game settings
+          </button>
+          {showRules && <GameRulesEditor rules={rules} onChange={setRules} />}
+
           <button
             className="primary"
             disabled={busy || !nameReady}
-            onClick={() => onCreateSolo(name.trim(), botCount, difficulty)}
+            onClick={() => onCreateSolo(name.trim(), botCount, difficulty, rules)}
           >
             Start Game
           </button>

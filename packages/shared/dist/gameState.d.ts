@@ -1,5 +1,6 @@
 import { Board } from './board.js';
 import { CellCoord } from './grid.js';
+import { GameRules } from './rules.js';
 import { ScoreResult } from './scoring.js';
 import { Tile } from './tiles.js';
 export interface PlayerSetup {
@@ -57,7 +58,7 @@ export interface RoundState {
     turnOrder: string[];
     currentPlayerIndex: number;
     passStreak: number;
-    /** Tiles the current player has drawn this turn; capped by MAX_DRAWS_PER_TURN. */
+    /** Tiles the current player has drawn this turn; capped by rules.maxDrawsPerTurn. */
     drawsThisTurn: number;
     starterChoice?: StarterChoice;
     log: GameEvent[];
@@ -67,18 +68,20 @@ export interface GameState {
     round: RoundState;
     gameOver: boolean;
     winnerId?: string;
+    rules: GameRules;
 }
 export declare function handSizeFor(playerCount: number): number;
 export declare function currentPlayerId(round: RoundState): string;
 /** True once the player has exhausted the well or hit this turn's draw cap. */
-export declare function mustPassInsteadOfDrawing(round: RoundState): boolean;
+export declare function mustPassInsteadOfDrawing(round: RoundState, maxDrawsPerTurn: number): boolean;
 /**
- * Deals a fresh 56-tile deck directly into `players`' hands (scores carry over across
- * rounds, so `players` must be the live PlayerState array) and opens the round. May
- * land in 'awaiting-starter-choice' if one player holds both the overall-highest
- * triple and 0-0-0 -- the rulebook lets them pick which to open with.
+ * Deals a fresh deck (one shared deck per `rules.tileSets` standard sets) directly into
+ * `players`' hands (scores carry over across rounds, so `players` must be the live
+ * PlayerState array) and opens the round. May land in 'awaiting-starter-choice' if one
+ * player holds both the overall-highest triple and 0-0-0 -- the rulebook lets them pick
+ * which to open with.
  */
-export declare function startRound(players: PlayerState[], roundNumber: number, rng?: () => number): RoundState;
+export declare function startRound(players: PlayerState[], roundNumber: number, rules?: GameRules, rng?: () => number): RoundState;
 export declare function chooseStartingTile(state: GameState, playerId: string, tileId: string): void;
 export interface PlaceTileResult {
     score: ScoreResult;
@@ -104,7 +107,7 @@ export declare function applyNoMovePenalty(state: GameState, playerId: string): 
  * score (in a 2-player game that's simply the other player, regardless of who was ahead).
  */
 export declare function applyResign(state: GameState, playerId: string): void;
-export declare function startNewGame(players: PlayerSetup[], rng?: () => number): GameState;
+export declare function startNewGame(players: PlayerSetup[], rules?: GameRules, rng?: () => number): GameState;
 export declare function startNextRound(state: GameState, rng?: () => number): void;
 export interface PublicPlayerState {
     id: string;
@@ -121,7 +124,9 @@ export interface PublicGameState {
     };
     gameOver: boolean;
     winnerId?: string;
+    rules: GameRules;
 }
 /** Strips other players' hands and the well's contents so a viewer only sees what
- *  they're allowed to: their own hand, everyone's hand *count*, and the well size. */
+ *  they're allowed to: their own hand, everyone's hand *count*, and the well size. The
+ *  rules themselves aren't secret, so they pass through unredacted. */
 export declare function redactGameState(state: GameState, viewerId: string): PublicGameState;

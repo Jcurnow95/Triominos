@@ -1,11 +1,25 @@
-/** All 56 official tiles: every multiset of 3 values from 0-5. */
-export function generateDeck() {
-    const tiles = [];
+/**
+ * The 56 official tiles: every multiset of 3 values from 0-5. Pass `setCount` > 1 to
+ * shuffle multiple standard sets together into one shared deck (a real house rule for
+ * bigger tables) -- the extra copies get a `#2`, `#3`, ... suffix on their id so every
+ * tile in the combined deck still has a unique id, while `setCount` 1 (the default)
+ * keeps the original bare ids for backward compatibility.
+ */
+export function generateDeck(setCount = 1) {
+    const singleSet = [];
     for (let a = 0; a <= 5; a++) {
         for (let b = a; b <= 5; b++) {
             for (let c = b; c <= 5; c++) {
-                tiles.push({ id: `${a}-${b}-${c}`, values: [a, b, c] });
+                singleSet.push({ id: `${a}-${b}-${c}`, values: [a, b, c] });
             }
+        }
+    }
+    if (setCount <= 1)
+        return singleSet;
+    const tiles = [...singleSet];
+    for (let set = 2; set <= setCount; set++) {
+        for (const tile of singleSet) {
+            tiles.push({ id: `${tile.id}#${set}`, values: tile.values });
         }
     }
     return tiles;
