@@ -23,10 +23,15 @@ function isAssignmentValid(board, cell, values) {
     }
     return touchesExisting;
 }
-/** All legal placements for a single tile against the current board. */
-export function findLegalPlacements(tile, board) {
+/**
+ * Every empty cell touching at least one already-placed tile -- the full set of spots
+ * *some* tile could occupy next, before checking whether any particular tile's values
+ * actually fit there. Used for "realism mode", where the board shows every cell you're
+ * allowed to try placing on rather than narrowing it down to the ones that will work.
+ */
+export function emptyFringeCells(board) {
     if (Object.keys(board).length === 0) {
-        return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+        return [{ q: 0, r: 0, orient: 'up' }];
     }
     const candidates = new Map();
     for (const placed of boardTiles(board)) {
@@ -36,8 +41,15 @@ export function findLegalPlacements(tile, board) {
                 candidates.set(k, neighbor);
         }
     }
+    return [...candidates.values()];
+}
+/** All legal placements for a single tile against the current board. */
+export function findLegalPlacements(tile, board) {
+    if (Object.keys(board).length === 0) {
+        return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+    }
     const results = [];
-    for (const cell of candidates.values()) {
+    for (const cell of emptyFringeCells(board)) {
         // Only the tile's real rotations, chosen for this cell's winding -- never a flip.
         for (const perm of tileOrientations(tile.values, cell.orient === 'down')) {
             if (isAssignmentValid(board, cell, perm)) {

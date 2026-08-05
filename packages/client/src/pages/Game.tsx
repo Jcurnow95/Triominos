@@ -7,6 +7,7 @@ import {
   PublicGameState,
   boardTiles,
   cellKey,
+  emptyFringeCells,
   findLegalPlacements,
   hasAnyLegalPlacement,
 } from '@triominos/shared';
@@ -79,24 +80,37 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
   const canStillDraw = round.wellCount > 0 && round.drawsThisTurn < MAX_DRAWS_PER_TURN;
 
   // With the assist off -- or when it isn't your turn -- every tile is shown identically,
-  // leaving it to the player to read the board and work out which tiles fit.
+  // leaving it to the player to read the board and work out which tiles fit. Realism mode
+  // forces this regardless of the markPlayableTiles setting.
   const markedTileIds =
-    isMyTurn && gamePrefs.markPlayableTiles ? playableTileIds : new Set(myHand.map((t) => t.id));
+    isMyTurn && gamePrefs.markPlayableTiles && !gamePrefs.realismMode
+      ? playableTileIds
+      : new Set(myHand.map((t) => t.id));
 
   const selectedTile = myHand.find((t) => t.id === selectedTileId) ?? null;
   const highlights: BoardHighlight[] = useMemo(() => {
     if (!selectedTile || !isMyTurn) return [];
+    // Realism mode offers every empty edge cell instead of narrowing it down to the ones
+    // the selected tile actually fits -- an illegal attempt is simply rejected by the
+    // server, the same way a real tile just wouldn't sit flush against the board.
+    if (gamePrefs.realismMode) {
+      return emptyFringeCells(round.board).map((cell) => ({ cell, values: selectedTile.values }));
+    }
     return findLegalPlacements(selectedTile, round.board);
-  }, [selectedTile, round.board, isMyTurn]);
+  }, [selectedTile, round.board, isMyTurn, gamePrefs.realismMode]);
 
   // The most recent scoring play drives the highlight, the bonus glow, and the score popup.
+  // The very first tile of a round is logged as 'round-start' rather than 'placed' -- it
+  // always lands at the origin cell -- so it needs to be recognised here too, or the
+  // opening play would be the one placement that never gets a highlight or points popup.
   const lastPlay = useMemo(() => {
     for (let i = round.log.length - 1; i >= 0; i--) {
       const ev = round.log[i];
-      if (ev.type === 'placed') {
+      if (ev.type === 'placed' || ev.type === 'round-start') {
         const bonus: BonusType =
           ev.score.bonusLabel === 'hexagon' ? 'hexagon' : ev.score.bonusLabel === 'bridge' ? 'bridge' : 'none';
-        return { seq: i, key: cellKey(ev.cell), cell: ev.cell, points: ev.score.total, bonus };
+        const cell: CellCoord = ev.type === 'placed' ? ev.cell : { q: 0, r: 0, orient: 'up' };
+        return { seq: i, key: cellKey(cell), cell, points: ev.score.total, bonus, playerId: ev.playerId };
       }
     }
     return null;
@@ -133,7 +147,13 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
   }));
 
   const floating: FloatingScore | null = lastPlay
-    ? { seq: lastPlay.seq, cell: lastPlay.cell, points: lastPlay.points, bonus: lastPlay.bonus }
+    ? {
+        seq: lastPlay.seq,
+        cell: lastPlay.cell,
+        points: lastPlay.points,
+        bonus: lastPlay.bonus,
+        playerName: game.players.find((p) => p.id === lastPlay.playerId)?.name ?? '',
+      }
     : null;
 
   function handlePlace(cell: CellCoord) {

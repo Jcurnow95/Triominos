@@ -18,8 +18,9 @@ import {
 import { Home } from './pages/Home';
 import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
+import { Puzzle } from './pages/Puzzle';
 
-type Phase = 'connecting' | 'home' | 'lobby' | 'game';
+type Phase = 'connecting' | 'home' | 'lobby' | 'game' | 'puzzle';
 
 function roomCodeFromUrl(): string {
   const params = new URLSearchParams(window.location.search);
@@ -211,6 +212,18 @@ export default function App() {
     return <div className="center-message">Connecting...</div>;
   }
 
+  if (phase === 'puzzle') {
+    return (
+      <Puzzle
+        themePrefs={themePrefs}
+        gamePrefs={gamePrefs}
+        onThemeChange={setThemePrefs}
+        onGamePrefsChange={setGamePrefs}
+        onExit={() => setPhase('home')}
+      />
+    );
+  }
+
   if (phase === 'home' || !roomCode || !selfPlayerId) {
     return (
       <Home
@@ -224,6 +237,7 @@ export default function App() {
         onCreate={handleCreate}
         onJoin={handleJoin}
         onCreateSolo={handleCreateSolo}
+        onPuzzleMode={() => setPhase('puzzle')}
       />
     );
   }

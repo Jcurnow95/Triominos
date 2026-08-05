@@ -39,12 +39,16 @@ export interface Placement {
   values: [number, number, number];
 }
 
-/** All legal placements for a single tile against the current board. */
-export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
+/**
+ * Every empty cell touching at least one already-placed tile -- the full set of spots
+ * *some* tile could occupy next, before checking whether any particular tile's values
+ * actually fit there. Used for "realism mode", where the board shows every cell you're
+ * allowed to try placing on rather than narrowing it down to the ones that will work.
+ */
+export function emptyFringeCells(board: Board): CellCoord[] {
   if (Object.keys(board).length === 0) {
-    return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+    return [{ q: 0, r: 0, orient: 'up' }];
   }
-
   const candidates = new Map<string, CellCoord>();
   for (const placed of boardTiles(board)) {
     for (const neighbor of edgeNeighbors(placed.cell)) {
@@ -52,9 +56,17 @@ export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
       if (!board[k]) candidates.set(k, neighbor);
     }
   }
+  return [...candidates.values()];
+}
+
+/** All legal placements for a single tile against the current board. */
+export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
+  if (Object.keys(board).length === 0) {
+    return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+  }
 
   const results: Placement[] = [];
-  for (const cell of candidates.values()) {
+  for (const cell of emptyFringeCells(board)) {
     // Only the tile's real rotations, chosen for this cell's winding -- never a flip.
     for (const perm of tileOrientations(tile.values, cell.orient === 'down')) {
       if (isAssignmentValid(board, cell, perm)) {

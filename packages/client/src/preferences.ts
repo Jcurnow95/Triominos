@@ -10,6 +10,13 @@ export interface GamePrefs {
    */
   fastAiMoves: boolean;
   /**
+   * When true, the board never marks which of your tiles are playable or which cells a
+   * selected tile legally fits -- every empty edge cell is offered and an illegal attempt
+   * just gets rejected, like laying a real tile against the board yourself. Overrides
+   * `markPlayableTiles`.
+   */
+  realismMode: boolean;
+  /**
    * When true, each corner number is rotated to face outward, like a real printed
    * Tri-Ominos tile, instead of staying upright.
    */
@@ -27,6 +34,7 @@ export interface GamePrefs {
 export const DEFAULT_GAME_PREFS: GamePrefs = {
   markPlayableTiles: true,
   fastAiMoves: false,
+  realismMode: false,
   pointFacingNumbers: false,
   sfxEnabled: true,
   sfxVolume: 80,
@@ -53,6 +61,8 @@ export function loadGamePrefs(): GamePrefs {
           : DEFAULT_GAME_PREFS.markPlayableTiles,
       fastAiMoves:
         typeof parsed.fastAiMoves === 'boolean' ? parsed.fastAiMoves : DEFAULT_GAME_PREFS.fastAiMoves,
+      realismMode:
+        typeof parsed.realismMode === 'boolean' ? parsed.realismMode : DEFAULT_GAME_PREFS.realismMode,
       pointFacingNumbers:
         typeof parsed.pointFacingNumbers === 'boolean'
           ? parsed.pointFacingNumbers

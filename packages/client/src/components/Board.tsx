@@ -7,6 +7,8 @@ export interface BoardTileView {
   values: [number, number, number];
   recent?: boolean;
   bonus?: BonusType;
+  /** Puzzle mode: one of the two fixed anchor tiles the player must connect. */
+  point?: boolean;
 }
 
 export interface BoardHighlight {
@@ -20,6 +22,8 @@ export interface FloatingScore {
   cell: CellCoord;
   points: number;
   bonus: BonusType;
+  /** Whoever made the play -- shown alongside the points so a lone opening tile isn't unattributed. */
+  playerName: string;
 }
 
 interface BoardProps {
@@ -199,6 +203,7 @@ export function Board({ tiles, highlights, floating, splitByNumber, pointFacingN
             values={t.values}
             recent={t.recent}
             bonus={t.bonus}
+            point={t.point}
             splitByNumber={splitByNumber}
             pointFacingNumbers={pointFacingNumbers}
           />
@@ -235,6 +240,7 @@ function PlacedTileShape({
   values,
   recent,
   bonus,
+  point,
   splitByNumber,
   pointFacingNumbers,
 }: BoardTileView & { splitByNumber?: boolean; pointFacingNumbers?: boolean }) {
@@ -242,10 +248,23 @@ function PlacedTileShape({
   if (recent) classNames.push('recent');
   if (bonus === 'bridge' || bonus === 'hexagon') classNames.push(`bonus-${bonus}`);
   if (splitByNumber) classNames.push('coded');
+  if (point) classNames.push('point-tile');
 
   return (
     <g className={classNames.join(' ')}>
       <TileFace vertices={cellPixelVertices(cell)} values={values} splitByNumber={splitByNumber} pointFacingNumbers={pointFacingNumbers} />
+      {point && <PointBadge cell={cell} />}
+    </g>
+  );
+}
+
+/** Puzzle mode: a small pin marking one of the two tiles the player must connect. */
+function PointBadge({ cell }: { cell: CellCoord }) {
+  const { x, y } = cellCentroidPixel(cell);
+  return (
+    <g transform={`translate(${x} ${y})`} className="point-badge" aria-hidden="true">
+      <circle r="9" />
+      <path d="M0 -4.5 L2.6 -1 L6.5 -0.6 L3.6 2 L4.4 6 L0 4 L-4.4 6 L-3.6 2 L-6.5 -0.6 L-2.6 -1 Z" />
     </g>
   );
 }
@@ -312,6 +331,9 @@ function FloatingScorePopup({ floating }: { floating: FloatingScore }) {
   return (
     <g transform={`translate(${x} ${y})`} aria-hidden="true">
       <g className="floating-score">
+        {floating.playerName && (
+          <text className="floating-score-player" y={-16} textAnchor="middle">{floating.playerName}</text>
+        )}
         <text className="floating-score-points" textAnchor="middle">+{floating.points}</text>
         {label && <text className="floating-score-bonus" y={22} textAnchor="middle">{label}</text>}
       </g>

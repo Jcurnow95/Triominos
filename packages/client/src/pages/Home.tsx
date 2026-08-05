@@ -19,6 +19,7 @@ interface HomeProps {
   onCreate: (name: string) => void;
   onJoin: (name: string, roomCode: string) => void;
   onCreateSolo: (name: string, botCount: number, difficulty: BotDifficulty) => void;
+  onPuzzleMode: () => void;
 }
 
 const DIFFICULTIES: { value: BotDifficulty; label: string; blurb: string }[] = [
@@ -27,7 +28,7 @@ const DIFFICULTIES: { value: BotDifficulty; label: string; blurb: string }[] = [
   { value: 'hard', label: 'Hard', blurb: 'Scores high, sheds big tiles, and avoids setting you up.' },
 ];
 
-export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onThemeChange, onGamePrefsChange, onCreate, onJoin, onCreateSolo }: HomeProps) {
+export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onThemeChange, onGamePrefsChange, onCreate, onJoin, onCreateSolo, onPuzzleMode }: HomeProps) {
   const [mode, setMode] = useState<Mode>(initialRoomCode ? 'online' : 'menu');
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -77,6 +78,9 @@ export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onTh
           </button>
           <button disabled={!nameReady} onClick={() => setMode('online')}>
             Play with Friends
+          </button>
+          <button onClick={onPuzzleMode}>
+            Puzzle Mode
           </button>
         </div>
       )}

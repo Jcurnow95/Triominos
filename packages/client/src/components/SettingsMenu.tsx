@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { BOARD_THEMES, TILE_THEMES, ThemePrefs, getTileTheme } from '../theme';
+import { BOARD_THEMES, TILE_THEMES, ThemePrefs } from '../theme';
 import { GamePrefs } from '../preferences';
+import { TileFace } from './Board';
 
 interface SettingsMenuProps {
   themePrefs: ThemePrefs;
@@ -48,15 +49,34 @@ export function SettingsMenu({ themePrefs, gamePrefs, onThemeChange, onGamePrefs
             <label className="setting-row">
               <input
                 type="checkbox"
+                checked={gamePrefs.realismMode}
+                onChange={(e) => onGamePrefsChange({ ...gamePrefs, realismMode: e.target.checked })}
+              />
+              <span>
+                <span className="setting-name">Realism mode</span>
+                <span className="setting-hint">
+                  {gamePrefs.realismMode
+                    ? "No hints at all -- playable tiles aren't marked and legal cells aren't shown. Illegal placements just get rejected."
+                    : 'Turn on for no hints -- like laying a real tile against the board yourself.'}
+                </span>
+              </span>
+            </label>
+
+            <label className={gamePrefs.realismMode ? 'setting-row disabled' : 'setting-row'}>
+              <input
+                type="checkbox"
                 checked={gamePrefs.markPlayableTiles}
+                disabled={gamePrefs.realismMode}
                 onChange={(e) => onGamePrefsChange({ ...gamePrefs, markPlayableTiles: e.target.checked })}
               />
               <span>
                 <span className="setting-name">Mark playable tiles</span>
                 <span className="setting-hint">
-                  {gamePrefs.markPlayableTiles
-                    ? 'Tiles you cannot play are dimmed.'
-                    : 'All tiles look the same -- read the board yourself.'}
+                  {gamePrefs.realismMode
+                    ? 'Overridden by realism mode.'
+                    : gamePrefs.markPlayableTiles
+                      ? 'Tiles you cannot play are dimmed.'
+                      : 'All tiles look the same -- read the board yourself.'}
                 </span>
               </span>
             </label>
@@ -205,19 +225,29 @@ function VolumeSetting({
   );
 }
 
+/**
+ * Mirrors the board's own tile rendering (same TileFace component and CSS classes) so the
+ * "colour-coded" theme -- which paints each corner by its number rather than a flat face --
+ * actually shows up here instead of falling back to a flat swatch colour.
+ */
 function PreviewTiles({ tileThemeId }: { tileThemeId: string }) {
-  const t = getTileTheme(tileThemeId);
+  const splitByNumber = tileThemeId === 'coded';
   return (
     <svg viewBox="0 0 150 80" className="preview-svg" aria-hidden="true">
-      <polygon points="40,8 76,70 4,70" fill={t.fill} stroke={t.stroke} strokeWidth={2.5} />
-      <text x="40" y="32" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">3</text>
-      <text x="57" y="58" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">4</text>
-      <text x="23" y="58" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">5</text>
-
-      <polygon points="76,70 40,8 112,8" fill={t.fillRecent} stroke={t.stroke} strokeWidth={2.5} />
-      <text x="76" y="46" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">4</text>
-      <text x="57" y="20" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">3</text>
-      <text x="95" y="20" textAnchor="middle" fill={t.text} fontSize="13" fontWeight="700">1</text>
+      <g className={splitByNumber ? 'placed-tile coded' : 'placed-tile'}>
+        <TileFace
+          vertices={[{ x: 40, y: 8 }, { x: 76, y: 70 }, { x: 4, y: 70 }]}
+          values={[3, 4, 5]}
+          splitByNumber={splitByNumber}
+        />
+      </g>
+      <g className={splitByNumber ? 'placed-tile recent coded' : 'placed-tile recent'}>
+        <TileFace
+          vertices={[{ x: 76, y: 70 }, { x: 40, y: 8 }, { x: 112, y: 8 }]}
+          values={[4, 3, 1]}
+          splitByNumber={splitByNumber}
+        />
+      </g>
     </svg>
   );
 }

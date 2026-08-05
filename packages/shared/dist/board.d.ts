@@ -14,6 +14,13 @@ export interface Placement {
     cell: CellCoord;
     values: [number, number, number];
 }
+/**
+ * Every empty cell touching at least one already-placed tile -- the full set of spots
+ * *some* tile could occupy next, before checking whether any particular tile's values
+ * actually fit there. Used for "realism mode", where the board shows every cell you're
+ * allowed to try placing on rather than narrowing it down to the ones that will work.
+ */
+export declare function emptyFringeCells(board: Board): CellCoord[];
 /** All legal placements for a single tile against the current board. */
 export declare function findLegalPlacements(tile: Tile, board: Board): Placement[];
 export declare function hasAnyLegalPlacement(hand: Tile[], board: Board): boolean;
