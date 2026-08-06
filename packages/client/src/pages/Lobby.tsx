@@ -9,15 +9,18 @@ interface LobbyProps {
   error: string | null;
   onStart: () => void;
   onUpdateRules: (rules: GameRules) => void;
+  onLeave: () => void;
 }
 
-export function Lobby({ lobby, selfPlayerId, busy, error, onStart, onUpdateRules }: LobbyProps) {
+export function Lobby({ lobby, selfPlayerId, busy, error, onStart, onUpdateRules, onLeave }: LobbyProps) {
   const isHost = lobby.hostId === selfPlayerId;
   const shareUrl = `${window.location.origin}${window.location.pathname}?room=${lobby.roomCode}`;
   const [showRules, setShowRules] = useState(false);
 
   return (
     <div className="lobby-page">
+      <button className="link-button" onClick={onLeave}>&larr; Back</button>
+
       <h1>Room {lobby.roomCode}</h1>
       <p className="tagline">Share this code or link with friends to have them join.</p>
 
