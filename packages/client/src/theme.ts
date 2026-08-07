@@ -18,6 +18,12 @@ export interface TileTheme {
    * the number in that corner, instead of a single flat face. Indexed by value 0-5.
    */
   numberColors?: NumberColor[];
+  /**
+   * Colour for a freestyle tile's "any" corner. Only meaningful alongside
+   * `numberColors`; a flat-faced theme just paints wild corners like the rest of the
+   * tile, since there is no per-corner colour to distinguish them from.
+   */
+  wildColor?: NumberColor;
 }
 
 export interface BoardTheme {
@@ -62,6 +68,8 @@ export const TILE_THEMES: TileTheme[] = [
       { fill: '#7b4fd1', text: '#ffffff' }, // 4 purple
       { fill: '#d63b3b', text: '#ffffff' }, // 5 red
     ],
+    // Pink: the one hue left that reads apart from both the purple 4 and the red 5.
+    wildColor: { fill: '#e8459b', text: '#ffffff' },
   },
 ];
 
@@ -201,6 +209,12 @@ export function applyTheme(prefs: ThemePrefs): void {
     root.style.setProperty(`--num-${value}-fill`, c ? c.fill : tile.fill);
     root.style.setProperty(`--num-${value}-text`, c ? c.text : tile.text);
   }
+
+  // A freestyle tile's "any" corner. Without a per-corner palette it falls back to the
+  // plain tile face, which reads as "blank, anything goes".
+  const wild = tile.wildColor;
+  root.style.setProperty('--wild-fill', wild ? wild.fill : tile.fill);
+  root.style.setProperty('--wild-text', wild ? wild.text : tile.text);
 
   root.style.setProperty('--bg', board.bg);
   root.style.setProperty('--bg-image', board.bgImage ?? 'none');

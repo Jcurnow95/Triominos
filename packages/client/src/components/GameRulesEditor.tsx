@@ -1,4 +1,4 @@
-import { GameRules, MAX_DRAWS_OPTIONS, TILE_SET_OPTIONS, WINNING_SCORE_OPTIONS } from '@triominos/shared';
+import { GameRules, MAX_DRAWS_OPTIONS, TILE_SET_OPTIONS, WINNING_SCORE_OPTIONS, maxFreestyleTiles } from '@triominos/shared';
 
 interface GameRulesEditorProps {
   rules: GameRules;
@@ -12,6 +12,17 @@ interface GameRulesEditorProps {
  * hold a GameRules value and hand back the next one on any change.
  */
 export function GameRulesEditor({ rules, onChange, disabled }: GameRulesEditorProps) {
+  const freestyleCap = maxFreestyleTiles(rules.tileSets);
+
+  /** Shrinking the deck can strand an allotment above the new cap, so re-clamp on change. */
+  function setTileSets(tileSets: number) {
+    onChange({
+      ...rules,
+      tileSets,
+      freestyleTiles: Math.min(rules.freestyleTiles, maxFreestyleTiles(tileSets)),
+    });
+  }
+
   return (
     <div className="rules-editor">
       <div className="field">
@@ -40,7 +51,7 @@ export function GameRulesEditor({ rules, onChange, disabled }: GameRulesEditorPr
               type="button"
               className={rules.tileSets === value ? 'option selected' : 'option'}
               disabled={disabled}
-              onClick={() => onChange({ ...rules, tileSets: value })}
+              onClick={() => setTileSets(value)}
             >
               {value}&times;
               <span className="btn-sub">{value * 56} tiles</span>
@@ -48,6 +59,30 @@ export function GameRulesEditor({ rules, onChange, disabled }: GameRulesEditorPr
           ))}
         </div>
         <p className="hint">Combine multiple standard sets for a bigger well -- handy with more players.</p>
+      </div>
+
+      <div className="field">
+        <span>Freestyle tiles</span>
+        <div className="slider-row">
+          <input
+            type="range"
+            min={0}
+            max={freestyleCap}
+            step={1}
+            value={rules.freestyleTiles}
+            disabled={disabled}
+            aria-label="Number of freestyle tiles"
+            onChange={(e) => onChange({ ...rules, freestyleTiles: Number(e.target.value) })}
+          />
+          <span className="slider-value">
+            {rules.freestyleTiles === 0 ? 'Off' : rules.freestyleTiles}
+          </span>
+        </div>
+        <p className="hint">
+          Wildcard tiles with one or two printed numbers; the rest match anything, so they
+          make bridges and hexagons far easier to close. Blank corners score nothing. Up to{' '}
+          {freestyleCap} -- half the {rules.tileSets * 56}-tile deck.
+        </p>
       </div>
 
       <div className="field">

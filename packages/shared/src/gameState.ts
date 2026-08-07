@@ -135,7 +135,7 @@ export function startRound(
   rules: GameRules = DEFAULT_GAME_RULES,
   rng: () => number = Math.random,
 ): RoundState {
-  const deck = shuffle(generateDeck(rules.tileSets), rng);
+  const deck = shuffle(generateDeck(rules.tileSets, rules.freestyleTiles), rng);
   const size = handSizeFor(players.length);
   let cursor = 0;
   for (const p of players) {

@@ -54,6 +54,7 @@ export function Lobby({ lobby, selfPlayerId, busy, error, onStart, onUpdateRules
       ) : (
         <p className="rules-summary">
           {`Playing to ${lobby.rules.winningScore} · ${lobby.rules.tileSets}× tile set${lobby.rules.tileSets > 1 ? 's' : ''} · draw up to ${lobby.rules.maxDrawsPerTurn} a turn`}
+          {lobby.rules.freestyleTiles > 0 && ` · ${lobby.rules.freestyleTiles} freestyle tiles`}
         </p>
       )}
 

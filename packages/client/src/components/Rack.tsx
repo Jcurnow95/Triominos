@@ -1,6 +1,6 @@
 import { PointerEvent as ReactPointerEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CellCoord, Tile, parseCellKey } from '@triominos/shared';
+import { CellCoord, Tile, isWild, parseCellKey, tileLabel } from '@triominos/shared';
 import { Point } from '../geometry';
 import { TileFace } from './Board';
 
@@ -32,9 +32,14 @@ interface RackProps {
   onDropOnCell: (cell: CellCoord) => void;
 }
 
+/** A wild corner can stand in for any number, so it answers every filter. */
+export function tileHasValue(tile: Tile, value: number): boolean {
+  return tile.values.some((v) => v === value || isWild(v));
+}
+
 export function tileMatchesFilters(tile: Tile, filters: Set<number>): boolean {
   if (filters.size === 0) return true;
-  return tile.values.some((v) => filters.has(v));
+  return [...filters].some((value) => tileHasValue(tile, value));
 }
 
 export function Rack({
@@ -62,7 +67,7 @@ export function Rack({
       >
         <span className="rack-filters-label">Show</span>
         {TILE_VALUES.map((value) => {
-          const count = hand.filter((t) => t.values.includes(value)).length;
+          const count = hand.filter((t) => tileHasValue(t, value)).length;
           const active = activeFilters.has(value);
           return (
             <button
@@ -197,7 +202,7 @@ function RackTile({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       aria-pressed={selected}
-      aria-label={`Tile ${tile.values.join('-')}${playable ? '' : ' (no legal move)'}`}
+      aria-label={`Tile ${tileLabel(tile.values)}${playable ? '' : ' (no legal move)'}`}
     >
       <svg viewBox="0 0 100 88" className="rack-tile-svg">
         <TileFace vertices={RACK_VERTS} values={tile.values} splitByNumber={splitByNumber} pointFacingNumbers={pointFacingNumbers} />

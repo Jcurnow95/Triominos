@@ -64,7 +64,7 @@ function openRoundWith(round, players, playerId, tile, hasTriple) {
  * which to open with.
  */
 export function startRound(players, roundNumber, rules = DEFAULT_GAME_RULES, rng = Math.random) {
-    const deck = shuffle(generateDeck(rules.tileSets), rng);
+    const deck = shuffle(generateDeck(rules.tileSets, rules.freestyleTiles), rng);
     const size = handSizeFor(players.length);
     let cursor = 0;
     for (const p of players) {

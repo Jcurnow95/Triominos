@@ -5,10 +5,17 @@ export interface GameRules {
     tileSets: number;
     /** How many tiles a player may draw in one turn before being forced to pass. */
     maxDrawsPerTurn: number;
+    /**
+     * Wildcard tiles shuffled in on top of the standard sets. Never more than half the
+     * standard deck, so the printed tiles always stay in the majority.
+     */
+    freestyleTiles: number;
 }
 export declare const WINNING_SCORE_OPTIONS: readonly [200, 400, 600];
 export declare const TILE_SET_OPTIONS: readonly [1, 2, 3];
 export declare const MAX_DRAWS_OPTIONS: readonly [1, 2, 3, 4, 5];
+/** The ceiling the freestyle allotment is held to: half the standard deck it's added to. */
+export declare function maxFreestyleTiles(tileSets: number): number;
 export declare const DEFAULT_GAME_RULES: GameRules;
 /**
  * Normalizes a partial/untrusted rules object -- e.g. straight off a socket payload --
