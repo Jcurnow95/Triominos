@@ -259,6 +259,7 @@ export default function App() {
         error={error}
         onStart={handleStart}
         onUpdateRules={handleUpdateRules}
+        onLeave={handleLeave}
       />
     );
   }

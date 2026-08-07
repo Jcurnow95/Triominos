@@ -228,6 +228,35 @@ input {
   align-items: center;
 }
 
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-row input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.slider-row input[type='range']:disabled {
+  accent-color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.slider-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  width: 2.6em;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .rules-summary {
   color: var(--text-dim);
   font-size: 0.85rem;
@@ -610,7 +639,8 @@ input {
   flex-shrink: 0;
 }
 
-.resign-button {
+.resign-button,
+.back-button {
   display: grid;
   place-items: center;
   width: 38px;
@@ -622,6 +652,11 @@ input {
 .resign-button:hover:not(:disabled) {
   color: var(--bad);
   border-color: var(--bad);
+}
+
+.back-button:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .scoreboard {
@@ -672,10 +707,21 @@ input {
 }
 
 .score-name {
+  display: inline-grid;
+  grid-template-areas: 'stack';
+  place-items: center;
+  font-weight: 600;
+}
+
+.score-name-text {
+  grid-area: stack;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-weight: 600;
+  padding: 1px 6px;
+  white-space: nowrap;
+  /* A halo in the card's own colour, so the name stays crisp over the tiles behind it. */
+  text-shadow: 0 0 4px var(--panel), 0 0 4px var(--panel), 0 0 8px var(--panel);
 }
 
 .leader-crown {
@@ -696,10 +742,25 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
-.hand-tile-icon {
-  fill: currentColor;
-  opacity: 0.8;
+/* The pile and the name share one grid cell, so the card's size follows whichever is
+   bigger -- as a player's hand grows, the pile behind their name grows the whole card. */
+.tile-pile {
+  grid-area: stack;
   flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* Drawn in `--text`: whatever the board theme picked as legible against its own
+   background, so the pile inverts with the theme -- pale on the dark boards, dark on
+   Paper and Steel. The brighter edge keeps overlapping tiles individually readable
+   instead of merging into one blob, the same trick the real tiles' strokes pull. */
+.tile-pile-piece {
+  fill: var(--text);
+  fill-opacity: 0.3;
+  stroke: var(--text);
+  stroke-opacity: 0.75;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
 }
 
 /* Two tiles or fewer -- this player could end the round on their next play. */
@@ -871,6 +932,13 @@ input {
   font-weight: 800;
   pointer-events: none;
   transition: fill 0.4s ease;
+}
+
+/* A freestyle tile's "any" corner. Slightly smaller and lighter than a printed digit so
+   it reads as a placeholder rather than a value. */
+.tile-number.wild {
+  font-size: 15px;
+  fill-opacity: 0.62;
 }
 
 .board-highlight {

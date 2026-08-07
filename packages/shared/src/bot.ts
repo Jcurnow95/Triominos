@@ -20,10 +20,10 @@ interface ScoredMove {
 
 /** Tiles that could still be in an opponent's hand or the well: the full deck minus
  *  what's on the board and what the bot holds. Inferring from public information only. */
-function unseenTiles(board: Board, ownHand: Tile[], tileSets: number): Tile[] {
+function unseenTiles(board: Board, ownHand: Tile[], tileSets: number, freestyleTiles: number): Tile[] {
   const known = new Set<string>(boardTiles(board).map((t) => t.tileId));
   for (const t of ownHand) known.add(t.id);
-  return generateDeck(tileSets).filter((t) => !known.has(t.id));
+  return generateDeck(tileSets, freestyleTiles).filter((t) => !known.has(t.id));
 }
 
 /** Best single-play score any unseen tile could take off the given board. Used by the
@@ -65,6 +65,7 @@ function chooseMove(
   difficulty: BotDifficulty,
   rng: () => number,
   tileSets: number,
+  freestyleTiles: number,
 ): ScoredMove {
   if (difficulty === 'easy') {
     return pickRandom(moves, rng);
@@ -82,7 +83,7 @@ function chooseMove(
   // weakest possible reply.
   const ranked = [...moves].sort((a, b) => b.immediate - a.immediate || tileSum(b.tile) - tileSum(a.tile));
   const candidates = ranked.slice(0, HARD_CANDIDATE_LIMIT);
-  const unseen = unseenTiles(board, hand, tileSets);
+  const unseen = unseenTiles(board, hand, tileSets, freestyleTiles);
 
   let best = candidates[0];
   let bestValue = -Infinity;
@@ -138,6 +139,6 @@ export function chooseBotAction(
     return mustPassInsteadOfDrawing(round, state.rules.maxDrawsPerTurn) ? { type: 'pass' } : { type: 'draw' };
   }
 
-  const move = chooseMove(moves, round.board, player.hand, difficulty, rng, state.rules.tileSets);
+  const move = chooseMove(moves, round.board, player.hand, difficulty, rng, state.rules.tileSets, state.rules.freestyleTiles);
   return { type: 'place', tileId: move.tile.id, cell: move.placement.cell };
 }

@@ -1,5 +1,5 @@
 import { CellCoord, cellKey, cellsEqual, cellVertices, edgeNeighbors, ringAround } from './grid.js';
-import { Tile, tileOrientations } from './tiles.js';
+import { Tile, isWild, tileOrientations, valuesMatch } from './tiles.js';
 
 export interface PlacedTile {
   tileId: string;
@@ -19,8 +19,21 @@ export function boardTiles(board: Board): PlacedTile[] {
   return Object.values(board);
 }
 
-function isAssignmentValid(board: Board, cell: CellCoord, values: [number, number, number]): boolean {
+/**
+ * Checks an orientation against the board and returns the values it would actually be
+ * placed with, or null if it doesn't fit. They can differ from what was passed in: an
+ * "any" corner of a freestyle tile takes on whatever number its neighbours already hold,
+ * so the board keeps a single settled value at that point. An "any" corner touching no
+ * committed number stays wild, and any later tile may match it -- which is what makes
+ * freestyle tiles good for closing bridges and hexagons.
+ */
+function resolveAssignment(
+  board: Board,
+  cell: CellCoord,
+  values: [number, number, number],
+): [number, number, number] | null {
   const verts = cellVertices(cell);
+  const resolved: [number, number, number] = [...values];
   let touchesExisting = false;
   for (let i = 0; i < 3; i++) {
     for (const entry of ringAround(verts[i])) {
@@ -28,10 +41,14 @@ function isAssignmentValid(board: Board, cell: CellCoord, values: [number, numbe
       const occ = board[cellKey(entry.cell)];
       if (!occ) continue;
       touchesExisting = true;
-      if (occ.values[entry.vertexIndex] !== values[i]) return false;
+      const theirs = occ.values[entry.vertexIndex];
+      // Compare against `resolved`, not `values`: once a wild corner has settled on a
+      // number, a second neighbour demanding a different one is a genuine conflict.
+      if (!valuesMatch(resolved[i], theirs)) return null;
+      if (isWild(resolved[i])) resolved[i] = theirs;
     }
   }
-  return touchesExisting;
+  return touchesExisting ? resolved : null;
 }
 
 export interface Placement {
@@ -69,8 +86,9 @@ export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
   for (const cell of emptyFringeCells(board)) {
     // Only the tile's real rotations, chosen for this cell's winding -- never a flip.
     for (const perm of tileOrientations(tile.values, cell.orient === 'down')) {
-      if (isAssignmentValid(board, cell, perm)) {
-        results.push({ cell, values: perm });
+      const resolved = resolveAssignment(board, cell, perm);
+      if (resolved) {
+        results.push({ cell, values: resolved });
         break; // any valid orientation scores identically; see design notes
       }
     }
@@ -98,7 +116,7 @@ export function evaluateBonus(board: Board, cell: CellCoord, values: [number, nu
     const occupied = ring.map((entry, idx) => {
       if (idx === selfPos) return false;
       const occ = board[cellKey(entry.cell)];
-      return !!occ && occ.values[entry.vertexIndex] === values[i];
+      return !!occ && valuesMatch(occ.values[entry.vertexIndex], values[i]);
     });
 
     const occupiedCount = occupied.filter(Boolean).length;

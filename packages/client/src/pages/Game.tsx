@@ -9,6 +9,7 @@ import {
   emptyFringeCells,
   findLegalPlacements,
   hasAnyLegalPlacement,
+  tileLabel,
 } from '@triominos/shared';
 import { Board, BoardHighlight, BoardTileView, FloatingScore } from '../components/Board';
 import { Rack, tileMatchesFilters } from '../components/Rack';
@@ -40,6 +41,7 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
   const [resultsHidden, setResultsHidden] = useState(false);
   const [handFilters, setHandFilters] = useState<Set<number>>(new Set());
   const [confirmingResign, setConfirmingResign] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
 
   // Re-show the results whenever a new round ends or the game finishes, so dismissing
   // one recap never suppresses the next.
@@ -177,6 +179,16 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
       <div className="game-header">
         <Scoreboard game={game} selfPlayerId={selfPlayerId} />
         <div className="header-actions">
+          <button
+            className="back-button"
+            // Leaving mid-game clears the session, so a live game is worth confirming;
+            // once it's over there's nothing left to lose by walking away.
+            onClick={() => (game.gameOver ? onLeave() : setConfirmingLeave(true))}
+            title="Back to menu"
+            aria-label="Back to menu"
+          >
+            <BackIcon />
+          </button>
           {!game.gameOver && (
             <button
               className="resign-button"
@@ -290,6 +302,16 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
           onCancel={() => setConfirmingResign(false)}
         />
       )}
+
+      {confirmingLeave && (
+        <LeaveConfirmModal
+          onConfirm={() => {
+            setConfirmingLeave(false);
+            onLeave();
+          }}
+          onCancel={() => setConfirmingLeave(false)}
+        />
+      )}
     </div>
   );
 }
@@ -352,16 +374,21 @@ function Scoreboard({ game, selfPlayerId }: { game: PublicGameState; selfPlayerI
               {p.name.trim().charAt(0).toUpperCase() || '?'}
             </span>
             <span className={`status-dot ${p.connected ? 'online' : 'offline'}`} />
-            <span className="score-name">
-              {p.name}
-              {id === selfPlayerId ? ' (you)' : ''}
-              {leaders.has(id) && <CrownIcon />}
+            <span
+              className="score-name"
+              title={`${p.handCount} tile${p.handCount === 1 ? '' : 's'} left`}
+            >
+              <TilePile count={p.handCount} />
+              <span className="score-name-text">
+                {p.name}
+                {id === selfPlayerId ? ' (you)' : ''}
+                {leaders.has(id) && <CrownIcon />}
+              </span>
             </span>
             <span
               className={p.handCount <= 2 ? 'score-hand low' : 'score-hand'}
               title={`${p.handCount} tile${p.handCount === 1 ? '' : 's'} left`}
             >
-              <HandTileIcon />
               {p.handCount}
             </span>
             <span className="score-points-wrap">
@@ -386,13 +413,59 @@ function avatarColor(id: string): string {
   return `hsl(${hash % 360}, 60%, 42%)`;
 }
 
-/** A tiny filled triangle, echoing the game's own tile shape, next to each hand count. */
-function HandTileIcon() {
+const TILE_PILE_CAP = 15;
+/** The pile spans the name card's full height, so a single tile still reads as a tile. */
+const TILE_PILE_HEIGHT = 32;
+/** Rendered edge length of one triangle. The path's own triangle is ~18 units across. */
+const TILE_PILE_PIECE_SIZE = 22;
+/** Horizontal step between neighbours -- half an edge, so they interlock like real tiles. */
+const TILE_PILE_STEP = 9;
+
+/**
+ * A pile of the game's own triangle shape, sitting behind a player's name. Tiles alternate
+ * point-up and point-down and interlock into a strip, the same zig-zag the real board makes,
+ * filling the name card top to bottom. Every tile still in hand widens the pile, so a
+ * nearly-empty hand is a small clump and a full hand is a card-wide heap.
+ */
+function TilePile({ count }: { count: number }) {
+  const shown = Math.min(count, TILE_PILE_CAP);
+  const width = TILE_PILE_PIECE_SIZE + TILE_PILE_STEP * (shown - 1);
+  const scale = TILE_PILE_PIECE_SIZE / 18;
+
+  const tiles = Array.from({ length: shown }, (_, i) => ({
+    key: i,
+    x: TILE_PILE_PIECE_SIZE / 2 + TILE_PILE_STEP * i,
+    // A little scatter off the centre line keeps the strip looking heaped rather than ruled.
+    y: TILE_PILE_HEIGHT / 2 + (pileJitter(i, 12.9898) - 0.5) * 5,
+    rotation: (pileJitter(i, 78.233) - 0.5) * 16,
+    // Alternating orientation is what makes neighbours nest into each other.
+    flip: i % 2 === 1 ? -1 : 1,
+  }));
+
   return (
-    <svg className="hand-tile-icon" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
-      <path d="M12 3 L21 20 L3 20 Z" />
+    <svg
+      className="tile-pile"
+      viewBox={`0 0 ${width} ${TILE_PILE_HEIGHT}`}
+      width={width}
+      height={TILE_PILE_HEIGHT}
+      aria-hidden="true"
+    >
+      {tiles.map((t) => (
+        <path
+          key={t.key}
+          className="tile-pile-piece"
+          d="M12 3 L21 20 L3 20 Z"
+          transform={`translate(${t.x} ${t.y}) rotate(${t.rotation}) scale(${scale} ${scale * t.flip}) translate(-12 -12)`}
+        />
+      ))}
     </svg>
   );
+}
+
+/** Deterministic 0..1 jitter, so a pile looks scattered but never reshuffles between renders. */
+function pileJitter(i: number, salt: number): number {
+  const v = Math.sin((i + 1) * salt) * 43758.5453;
+  return v - Math.floor(v);
 }
 
 function CrownIcon() {
@@ -418,6 +491,15 @@ function FlagIcon() {
   );
 }
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M19 12H5" strokeLinecap="round" />
+      <path d="M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ResignConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -426,6 +508,21 @@ function ResignConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; on
         <p>This ends the game right away and hands the win to whoever's ahead among the other players. You can&apos;t undo this.</p>
         <div className="modal-actions">
           <button className="danger" onClick={onConfirm}>Resign</button>
+          <button onClick={onCancel}>Keep playing</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeaveConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Leave the game?</h2>
+        <p>You&apos;ll go back to the menu and won&apos;t be able to rejoin this game. To end it properly and hand the win to whoever&apos;s ahead, resign instead.</p>
+        <div className="modal-actions">
+          <button className="danger" onClick={onConfirm}>Leave</button>
           <button onClick={onCancel}>Keep playing</button>
         </div>
       </div>
@@ -444,7 +541,7 @@ function StarterChoiceModal({ isMe, starterName, options, onChoose }: { isMe: bo
             <div className="starter-options">
               {options.map((t) => (
                 <button key={t.id} className="starter-option" onClick={() => onChoose(t.id)}>
-                  {t.values.join('-')}
+                  {tileLabel(t.values)}
                 </button>
               ))}
             </div>
@@ -534,9 +631,9 @@ function ActivityLog({ log, players }: { log: GameEvent[]; players: PublicGameSt
 function describeEvent(ev: GameEvent, nameOf: (id: string) => string): string {
   switch (ev.type) {
     case 'round-start':
-      return `${nameOf(ev.playerId)} opened with ${ev.tile.values.join('-')} for ${ev.score.total} points.`;
+      return `${nameOf(ev.playerId)} opened with ${tileLabel(ev.tile.values)} for ${ev.score.total} points.`;
     case 'placed':
-      return `${nameOf(ev.playerId)} played ${ev.tile.values.join('-')} for ${ev.score.total} points${ev.score.bonusLabel !== 'none' ? ` (${ev.score.bonusLabel}!)` : ''}.`;
+      return `${nameOf(ev.playerId)} played ${tileLabel(ev.tile.values)} for ${ev.score.total} points${ev.score.bonusLabel !== 'none' ? ` (${ev.score.bonusLabel}!)` : ''}.`;
     case 'drew':
       return `${nameOf(ev.playerId)} drew a tile from the well (-5).`;
     case 'no-move-penalty':

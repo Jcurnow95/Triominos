@@ -1,5 +1,5 @@
 import { PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BonusType, CellCoord, cellKey } from '@triominos/shared';
+import { BonusType, CellCoord, cellKey, isWild, tileLabel } from '@triominos/shared';
 import { BOARD_PADDING, Point, SCALE, cellCentroidPixel, cellPixelVertices, cellPolygonPoints, labelAngles, labelPositions, polygonPoints, regionPolygons } from '../geometry';
 
 export interface BoardTileView {
@@ -217,7 +217,7 @@ export function Board({ tiles, highlights, floating, splitByNumber, pointFacingN
             onClick={() => handleHighlightClick(h.cell)}
             role="button"
             tabIndex={0}
-            aria-label={`Place tile at ${h.values.join('-')}`}
+            aria-label={`Place tile at ${tileLabel(h.values)}`}
           >
             <polygon points={cellPolygonPoints(h.cell)} className="highlight-polygon" />
           </g>
@@ -295,7 +295,14 @@ export function TileFace({
       {splitByNumber ? (
         <>
           {regionPolygons(vertices).map((points, i) => (
-            <polygon key={i} points={points} className="tile-region" style={{ fill: `var(--num-${values[i]}-fill)` }} />
+            <polygon
+              key={i}
+              points={points}
+              className="tile-region"
+              // A wild corner has no number to colour by, so it takes the theme's own
+              // wild colour -- pink under the colour-coded palette.
+              style={{ fill: isWild(values[i]) ? 'var(--wild-fill)' : `var(--num-${values[i]}-fill)` }}
+            />
           ))}
           <polygon points={polygonPoints(vertices)} className="tile-outline" />
         </>
@@ -308,13 +315,17 @@ export function TileFace({
           key={i}
           x={p.x}
           y={p.y}
-          className="tile-number"
+          className={isWild(values[i]) ? 'tile-number wild' : 'tile-number'}
           textAnchor="middle"
           dominantBaseline="middle"
           transform={angles ? `rotate(${angles[i]} ${p.x} ${p.y})` : undefined}
-          style={splitByNumber ? { fill: `var(--num-${values[i]}-text)` } : undefined}
+          style={
+            splitByNumber
+              ? { fill: isWild(values[i]) ? 'var(--wild-text)' : `var(--num-${values[i]}-text)` }
+              : undefined
+          }
         >
-          {values[i]}
+          {isWild(values[i]) ? '★' : values[i]}
         </text>
       ))}
     </>
