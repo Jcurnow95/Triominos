@@ -7,14 +7,14 @@ export interface BoardTileView {
   values: [number, number, number];
   recent?: boolean;
   bonus?: BonusType;
-  /** Puzzle mode: one of the two fixed anchor tiles the player must connect. */
+  /** Puzzle mode: one of the fixed anchor tiles the player must connect. */
   point?: boolean;
   /**
-   * True when the tile placed here started as a freestyle wildcard. Its "any" corners
-   * may since have settled onto real numbers, which would otherwise leave it reading as
-   * an ordinary printed tile once played -- the star badge is what keeps it recognisable.
+   * The tile's corners as printed, before any "any" corner settled onto a neighbour's
+   * number. Lets a played freestyle keep the wild face it had in the hand rather than
+   * reading as an ordinary printed tile once its corners resolve.
    */
-  freestyle?: boolean;
+  printed?: [number, number, number];
 }
 
 export interface BoardHighlight {
@@ -210,7 +210,7 @@ export function Board({ tiles, highlights, floating, splitByNumber, pointFacingN
             recent={t.recent}
             bonus={t.bonus}
             point={t.point}
-            freestyle={t.freestyle}
+            printed={t.printed}
             splitByNumber={splitByNumber}
             pointFacingNumbers={pointFacingNumbers}
           />
@@ -248,10 +248,13 @@ function PlacedTileShape({
   recent,
   bonus,
   point,
-  freestyle,
+  printed,
   splitByNumber,
   pointFacingNumbers,
 }: BoardTileView & { splitByNumber?: boolean; pointFacingNumbers?: boolean }) {
+  const wildCorners = printed?.map(isWild) as [boolean, boolean, boolean] | undefined;
+  const freestyle = wildCorners?.some(Boolean) ?? false;
+
   const classNames = ['placed-tile'];
   if (recent) classNames.push('recent');
   if (bonus === 'bridge' || bonus === 'hexagon') classNames.push(`bonus-${bonus}`);
@@ -261,9 +264,14 @@ function PlacedTileShape({
 
   return (
     <g className={classNames.join(' ')}>
-      <TileFace vertices={cellPixelVertices(cell)} values={values} splitByNumber={splitByNumber} pointFacingNumbers={pointFacingNumbers} />
+      <TileFace
+        vertices={cellPixelVertices(cell)}
+        values={values}
+        wildCorners={wildCorners}
+        splitByNumber={splitByNumber}
+        pointFacingNumbers={pointFacingNumbers}
+      />
       {point && <PointBadge cell={cell} />}
-      {freestyle && <FreestyleBadge cell={cell} />}
     </g>
   );
 }
@@ -280,22 +288,6 @@ function PointBadge({ cell }: { cell: CellCoord }) {
 }
 
 /**
- * A star pinned to the centre of a placed freestyle tile. Once a wild corner settles on
- * a real number (see `resolveAssignment` in board.ts) it prints identically to an
- * ordinary tile, so without this the fact it was played as a wildcard would be lost the
- * moment it touched the board.
- */
-function FreestyleBadge({ cell }: { cell: CellCoord }) {
-  const { x, y } = cellCentroidPixel(cell);
-  return (
-    <g transform={`translate(${x} ${y})`} className="freestyle-badge" aria-hidden="true">
-      <circle r="8" />
-      <path d="M0 -6 L1.8 -1.8 L6 -1.4 L2.8 1.4 L3.8 6 L0 3.6 L-3.8 6 L-2.8 1.4 L-6 -1.4 L-1.8 -1.8 Z" />
-    </g>
-  );
-}
-
-/**
  * The visual face of a single triangle: either a flat fill or three colour-coded
  * regions, plus its corner numbers. Shared by the board and any other place a tile
  * needs to render identically (e.g. the menu's decorative tiles), so they can never
@@ -304,17 +296,26 @@ function FreestyleBadge({ cell }: { cell: CellCoord }) {
 export function TileFace({
   vertices,
   values,
+  wildCorners,
   splitByNumber,
   pointFacingNumbers,
 }: {
   vertices: [Point, Point, Point];
   values: [number, number, number];
+  /**
+   * Corners printed "any" on the original tile. Corners still holding WILD in `values`
+   * are wild regardless; this additionally covers the ones that have since settled onto a
+   * neighbour's number, so a played wildcard keeps the same face it had in the hand
+   * instead of turning into an ordinary printed tile.
+   */
+  wildCorners?: [boolean, boolean, boolean];
   splitByNumber?: boolean;
   /** Rotate each corner number to face outward, like a real printed tile. */
   pointFacingNumbers?: boolean;
 }) {
   const labels = labelPositions(vertices);
   const angles = pointFacingNumbers ? labelAngles(vertices) : null;
+  const isWildCorner = (i: number) => isWild(values[i]) || wildCorners?.[i] === true;
 
   return (
     <>
@@ -327,7 +328,7 @@ export function TileFace({
               className="tile-region"
               // A wild corner has no number to colour by, so it takes the theme's own
               // wild colour -- pink under the colour-coded palette.
-              style={{ fill: isWild(values[i]) ? 'var(--wild-fill)' : `var(--num-${values[i]}-fill)` }}
+              style={{ fill: isWildCorner(i) ? 'var(--wild-fill)' : `var(--num-${values[i]}-fill)` }}
             />
           ))}
           <polygon points={polygonPoints(vertices)} className="tile-outline" />
@@ -341,17 +342,19 @@ export function TileFace({
           key={i}
           x={p.x}
           y={p.y}
-          className={isWild(values[i]) ? 'tile-number wild' : 'tile-number'}
+          className={isWildCorner(i) ? 'tile-number wild' : 'tile-number'}
           textAnchor="middle"
           dominantBaseline="middle"
           transform={angles ? `rotate(${angles[i]} ${p.x} ${p.y})` : undefined}
           style={
             splitByNumber
-              ? { fill: isWild(values[i]) ? 'var(--wild-text)' : `var(--num-${values[i]}-text)` }
+              ? { fill: isWildCorner(i) ? 'var(--wild-text)' : `var(--num-${values[i]}-text)` }
               : undefined
           }
         >
-          {isWild(values[i]) ? '★' : values[i]}
+          {/* A corner printed "any" keeps its star for the life of the tile, exactly as it
+              looked in the hand -- settling onto a neighbour's number never repaints it. */}
+          {isWildCorner(i) ? '★' : values[i]}
         </text>
       ))}
     </>

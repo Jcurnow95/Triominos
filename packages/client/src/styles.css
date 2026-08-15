@@ -998,18 +998,6 @@ input {
   fill: rgba(0, 0, 0, 0.65);
 }
 
-/* A placed freestyle tile: once its "any" corners settle onto real numbers they print
-   just like an ordinary tile, so this star is the only thing left marking it as one. */
-.freestyle-badge circle {
-  fill: var(--wild-fill);
-  stroke: rgba(0, 0, 0, 0.55);
-  stroke-width: 1.5;
-}
-
-.freestyle-badge path {
-  fill: var(--wild-text);
-}
-
 .tile-number {
   fill: var(--tile-text);
   font-size: 17px;

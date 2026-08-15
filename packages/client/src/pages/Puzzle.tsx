@@ -193,6 +193,7 @@ function PuzzlePlay({
     values: t.values,
     recent: lastPlacedKey !== null && cellKey(t.cell) === lastPlacedKey,
     point: isPointTileId(t.tileId),
+    printed: t.printed,
   }));
 
   const splitByNumber = themePrefs.tileThemeId === 'coded';
