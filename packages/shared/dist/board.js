@@ -111,7 +111,7 @@ export function evaluateBonus(board, cell, values) {
     }
     return bridge ? 'bridge' : 'none';
 }
-export function placeTile(board, tileId, cell, values) {
-    return { ...board, [cellKey(cell)]: { tileId, cell, values } };
+export function placeTile(board, tileId, cell, values, freestyle = false) {
+    return { ...board, [cellKey(cell)]: { tileId, cell, values, freestyle } };
 }
 //# sourceMappingURL=board.js.map

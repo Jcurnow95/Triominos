@@ -597,6 +597,16 @@ input {
   color: var(--text-dim);
 }
 
+/* Flags a level that fuses three anchor points instead of the usual two -- the harder
+   tier of puzzles, worth calling out before the player commits to one. */
+.puzzle-level-contacts {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .puzzle-header-info {
   display: flex;
   flex-direction: column;
@@ -926,6 +936,18 @@ input {
   fill: rgba(0, 0, 0, 0.65);
 }
 
+/* A placed freestyle tile: once its "any" corners settle onto real numbers they print
+   just like an ordinary tile, so this star is the only thing left marking it as one. */
+.freestyle-badge circle {
+  fill: var(--wild-fill);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 1.5;
+}
+
+.freestyle-badge path {
+  fill: var(--wild-text);
+}
+
 .tile-number {
   fill: var(--tile-text);
   font-size: 17px;
@@ -1120,7 +1142,11 @@ input {
   padding: 14px 2px 12px;
   min-height: 96px;
   align-items: center;
-  align-content: center;
+  /* `safe` keeps rows centered while they fit, but falls back to top-aligned once they
+     overflow -- plain `center` would center the overflowing rows around the container's
+     midpoint, pushing the first ones above scrollTop 0 where no amount of scrolling down
+     can ever reach them (a puzzle with a large hand would permanently hide its top row). */
+  align-content: safe center;
   /* Hands can grow large from well draws; wrap onto more rows rather than scrolling
      sideways, and only fall back to a scrollbar past a few rows. */
   max-height: 320px;

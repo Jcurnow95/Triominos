@@ -145,6 +145,7 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
     values: t.values,
     recent: lastPlay ? cellKey(t.cell) === lastPlay.key : false,
     bonus: lastPlay && cellKey(t.cell) === lastPlay.key ? lastPlay.bonus : 'none',
+    freestyle: t.freestyle,
   }));
 
   const floating: FloatingScore | null = lastPlay
