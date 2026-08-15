@@ -60,7 +60,7 @@ export function emptyFringeCells(board) {
 /** All legal placements for a single tile against the current board. */
 export function findLegalPlacements(tile, board) {
     if (Object.keys(board).length === 0) {
-        return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+        return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values, printed: tile.values }];
     }
     const results = [];
     for (const cell of emptyFringeCells(board)) {
@@ -68,7 +68,7 @@ export function findLegalPlacements(tile, board) {
         for (const perm of tileOrientations(tile.values, cell.orient === 'down')) {
             const resolved = resolveAssignment(board, cell, perm);
             if (resolved) {
-                results.push({ cell, values: resolved });
+                results.push({ cell, values: resolved, printed: perm });
                 break; // any valid orientation scores identically; see design notes
             }
         }
@@ -111,7 +111,23 @@ export function evaluateBonus(board, cell, values) {
     }
     return bridge ? 'bridge' : 'none';
 }
-export function placeTile(board, tileId, cell, values, freestyle = false) {
-    return { ...board, [cellKey(cell)]: { tileId, cell, values, freestyle } };
+export function placeTile(board, tileId, cell, values, 
+/** The tile's corners as printed, before `resolveAssignment` settled any of them.
+ *  Defaults to `values` for ordinary tiles, which have nothing to settle. */
+printed = values) {
+    return { ...board, [cellKey(cell)]: { tileId, cell, values, printed } };
+}
+/** True when this cell was played from a freestyle wildcard, however its corners settled. */
+export function isPlacedFreestyle(placed) {
+    return placed.printed.some(isWild);
+}
+/**
+ * Which of this cell's corners were printed "any" -- the ones that should still read as
+ * wild on the board. A corner that settled onto a neighbour's number keeps that number
+ * (players need to see what it matches), but stays flagged here so it can be drawn as the
+ * wildcard it was played as rather than as an ordinary printed digit.
+ */
+export function placedWildCorners(placed) {
+    return placed.printed.map(isWild);
 }
 //# sourceMappingURL=board.js.map

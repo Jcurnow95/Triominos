@@ -7,12 +7,13 @@ export interface PlacedTile {
   /** values[i] sits at cellVertices(cell)[i] */
   values: [number, number, number];
   /**
-   * True when the tile that was placed here started as a freestyle wildcard. Its "any"
-   * corners may since have settled onto real numbers (see `resolveAssignment`), which
-   * would otherwise make it indistinguishable from an ordinary printed tile -- this is
-   * what lets the board keep marking it as one after the fact.
+   * The tile's corners exactly as printed on it, before `resolveAssignment` settled any
+   * of them. For an ordinary tile this is identical to `values`; for a freestyle it keeps
+   * the WILD markers, so the board can still tell which corners were played as wildcards
+   * after they've settled onto real numbers and would otherwise be indistinguishable from
+   * an ordinary printed tile.
    */
-  freestyle: boolean;
+  printed: [number, number, number];
 }
 
 /** Keyed by cellKey(cell). Plain object so it serializes cleanly over the wire. */
@@ -61,6 +62,13 @@ function resolveAssignment(
 export interface Placement {
   cell: CellCoord;
   values: [number, number, number];
+  /**
+   * The same corners before `resolveAssignment` settled any of them, in the rotation this
+   * placement uses. Kept alongside `values` because a tile is rotated to fit, so the
+   * tile's own `values` order does not line up with the placed one -- pairing them up here
+   * is what lets a played freestyle mark the right corners as wild.
+   */
+  printed: [number, number, number];
 }
 
 /**
@@ -86,7 +94,7 @@ export function emptyFringeCells(board: Board): CellCoord[] {
 /** All legal placements for a single tile against the current board. */
 export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
   if (Object.keys(board).length === 0) {
-    return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values }];
+    return [{ cell: { q: 0, r: 0, orient: 'up' }, values: tile.values, printed: tile.values }];
   }
 
   const results: Placement[] = [];
@@ -95,7 +103,7 @@ export function findLegalPlacements(tile: Tile, board: Board): Placement[] {
     for (const perm of tileOrientations(tile.values, cell.orient === 'down')) {
       const resolved = resolveAssignment(board, cell, perm);
       if (resolved) {
-        results.push({ cell, values: resolved });
+        results.push({ cell, values: resolved, printed: perm });
         break; // any valid orientation scores identically; see design notes
       }
     }
@@ -148,7 +156,24 @@ export function placeTile(
   tileId: string,
   cell: CellCoord,
   values: [number, number, number],
-  freestyle = false,
+  /** The tile's corners as printed, before `resolveAssignment` settled any of them.
+   *  Defaults to `values` for ordinary tiles, which have nothing to settle. */
+  printed: [number, number, number] = values,
 ): Board {
-  return { ...board, [cellKey(cell)]: { tileId, cell, values, freestyle } };
+  return { ...board, [cellKey(cell)]: { tileId, cell, values, printed } };
+}
+
+/** True when this cell was played from a freestyle wildcard, however its corners settled. */
+export function isPlacedFreestyle(placed: PlacedTile): boolean {
+  return placed.printed.some(isWild);
+}
+
+/**
+ * Which of this cell's corners were printed "any" -- the ones that should still read as
+ * wild on the board. A corner that settled onto a neighbour's number keeps that number
+ * (players need to see what it matches), but stays flagged here so it can be drawn as the
+ * wildcard it was played as rather than as an ordinary printed digit.
+ */
+export function placedWildCorners(placed: PlacedTile): [boolean, boolean, boolean] {
+  return placed.printed.map(isWild) as [boolean, boolean, boolean];
 }

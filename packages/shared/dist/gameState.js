@@ -2,7 +2,7 @@ import { emptyBoard, evaluateBonus, findLegalPlacements, hasAnyLegalPlacement, p
 import { cellKey } from './grid.js';
 import { DEFAULT_GAME_RULES } from './rules.js';
 import { HAND_EMPTY_BONUS, NO_MOVE_PENALTY, WELL_DRAW_PENALTY, scorePlay, scoreStartingTile, scoreStartingTileNoTriple, } from './scoring.js';
-import { generateDeck, isFreestyle, isTriple, shuffle, tileSum } from './tiles.js';
+import { generateDeck, isTriple, shuffle, tileSum } from './tiles.js';
 export function handSizeFor(playerCount) {
     if (playerCount === 2)
         return 9;
@@ -51,7 +51,7 @@ function openRoundWith(round, players, playerId, tile, hasTriple) {
     const isZero = tile.values[0] === 0 && tile.values[1] === 0 && tile.values[2] === 0;
     const score = hasTriple ? scoreStartingTile(tile, isZero) : scoreStartingTileNoTriple(tile);
     player.score += score.total;
-    round.board = placeBoardTile(round.board, tile.id, { q: 0, r: 0, orient: 'up' }, tile.values, isFreestyle(tile));
+    round.board = placeBoardTile(round.board, tile.id, { q: 0, r: 0, orient: 'up' }, tile.values, tile.values);
     round.log.push({ type: 'round-start', playerId, tile, score, noTriple: !hasTriple });
     round.currentPlayerIndex = round.turnOrder.indexOf(playerId);
     advanceTurn(round);
@@ -131,7 +131,7 @@ export function applyPlaceTile(state, playerId, tileId, cell) {
         throw new Error('Illegal placement');
     const bonus = evaluateBonus(round.board, cell, match.values);
     const score = scorePlay(tile, bonus);
-    round.board = placeBoardTile(round.board, tile.id, cell, match.values, isFreestyle(tile));
+    round.board = placeBoardTile(round.board, tile.id, cell, match.values, match.printed);
     player.hand = player.hand.filter((t) => t.id !== tileId);
     player.score += score.total;
     round.passStreak = 0;

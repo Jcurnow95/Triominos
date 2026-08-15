@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptyBoard, findLegalPlacements, placeTile } from '../src/board.js';
+import { emptyBoard, findLegalPlacements, isPlacedFreestyle, placeTile, placedWildCorners } from '../src/board.js';
+import { cellKey } from '../src/grid.js';
 import { DEFAULT_GAME_RULES, maxFreestyleTiles, sanitizeGameRules } from '../src/rules.js';
 import { startNewGame } from '../src/gameState.js';
 import { WILD, generateDeck, generateFreestyleTiles, isFreestyle, isTriple, isWild, tileSum, valuesMatch } from '../src/tiles.js';
@@ -132,6 +133,65 @@ describe('the freestyle allotment cap', () => {
     expect(sanitizeGameRules({ freestyleTiles: 3.6 }).freestyleTiles).toBe(4);
     expect(sanitizeGameRules({ freestyleTiles: NaN }).freestyleTiles).toBe(0);
     expect(sanitizeGameRules({ freestyleTiles: 'lots' as unknown as number }).freestyleTiles).toBe(0);
+  });
+});
+
+describe('a placed freestyle keeps its wildcard identity', () => {
+  it('remembers which corners were printed wild after they settle', () => {
+    let board = emptyBoard();
+    board = placeTile(board, 'A', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+
+    const placement = findLegalPlacements({ id: 'f', values: [4, 5, WILD] }, board)[0];
+    board = placeTile(board, 'f', placement.cell, placement.values, placement.printed);
+
+    const placed = board[cellKey(placement.cell)];
+    expect(isPlacedFreestyle(placed)).toBe(true);
+    // Exactly the corner printed "any" is flagged, in the rotation the tile was laid at.
+    expect(placedWildCorners(placed).filter(Boolean)).toHaveLength(1);
+    const wildIndex = placedWildCorners(placed).indexOf(true);
+    expect(isWild(placement.printed[wildIndex])).toBe(true);
+  });
+
+  it('lines the printed corners up with the rotation the placement actually uses', () => {
+    let board = emptyBoard();
+    board = placeTile(board, 'A', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+
+    // A tile is rotated to fit, so `printed` has to be rotated with it. If it were taken
+    // straight off the tile the wild flag would land on whichever corner happened to share
+    // that index, marking a printed number as wild and vice versa.
+    for (const placement of findLegalPlacements({ id: 'f', values: [4, 5, WILD] }, board)) {
+      expect(placement.printed).toHaveLength(3);
+      // Exactly one corner was printed wild, and wherever it is, that is the only index
+      // allowed to differ between printed and settled values.
+      expect(placement.printed.filter(isWild)).toHaveLength(1);
+      for (let i = 0; i < 3; i++) {
+        if (!isWild(placement.printed[i])) {
+          expect(placement.values[i]).toBe(placement.printed[i]);
+        }
+      }
+    }
+  });
+
+  it('treats an ordinary tile as having no wild corners', () => {
+    const board = placeTile(emptyBoard(), 'A', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    const placed = board[cellKey({ q: 0, r: 0, orient: 'up' })];
+    expect(isPlacedFreestyle(placed)).toBe(false);
+    expect(placedWildCorners(placed)).toEqual([false, false, false]);
+  });
+
+  it('leaves a freestyle played in the open fully wild, and keeps it that way', () => {
+    const printed: [number, number, number] = [4, WILD, WILD];
+    let board = placeTile(emptyBoard(), 'F', { q: 0, r: 0, orient: 'up' }, printed, printed);
+
+    const openKey = cellKey({ q: 0, r: 0, orient: 'up' });
+    expect(board[openKey].values).toEqual([4, WILD, WILD]);
+
+    // Placing a neighbour against it must not retroactively settle the open tile's corners.
+    const neighbour = findLegalPlacements({ id: 'n', values: [1, 2, 3] }, board)[0];
+    board = placeTile(board, 'n', neighbour.cell, neighbour.values);
+
+    expect(board[openKey].values).toEqual([4, WILD, WILD]);
+    expect(placedWildCorners(board[openKey])).toEqual([false, true, true]);
   });
 });
 

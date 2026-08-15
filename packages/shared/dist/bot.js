@@ -57,7 +57,7 @@ function chooseMove(moves, board, hand, difficulty, rng, tileSets, freestyleTile
     let best = candidates[0];
     let bestValue = -Infinity;
     for (const move of candidates) {
-        const nextBoard = placeTile(board, move.tile.id, move.placement.cell, move.placement.values);
+        const nextBoard = placeTile(board, move.tile.id, move.placement.cell, move.placement.values, move.placement.printed);
         const risk = bestOpponentReply(nextBoard, unseen);
         const value = move.immediate + tileSum(move.tile) * 0.1 - risk * 0.5;
         if (value > bestValue) {
