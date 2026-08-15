@@ -6,11 +6,16 @@ import { TileFace } from './Board';
 interface SettingsMenuProps {
   themePrefs: ThemePrefs;
   gamePrefs: GamePrefs;
+  /**
+   * The running game's rules already dictate the hint settings (hardcore mode), so the
+   * assist toggles are shown forced-on and read-only rather than silently ignored.
+   */
+  assistLocked?: boolean;
   onThemeChange: (prefs: ThemePrefs) => void;
   onGamePrefsChange: (prefs: GamePrefs) => void;
 }
 
-export function SettingsMenu({ themePrefs, gamePrefs, onThemeChange, onGamePrefsChange }: SettingsMenuProps) {
+export function SettingsMenu({ themePrefs, gamePrefs, assistLocked, onThemeChange, onGamePrefsChange }: SettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -46,37 +51,48 @@ export function SettingsMenu({ themePrefs, gamePrefs, onThemeChange, onGamePrefs
         <div className="theme-panel" role="dialog" aria-label="Settings">
           <div className="theme-section">
             <span className="theme-label">Assist</span>
-            <label className="setting-row">
+            {assistLocked && (
+              <p className="setting-note">
+                This game is set to <strong>Hardcore</strong> -- hints stay off for everyone until it
+                ends.
+              </p>
+            )}
+            <label className={assistLocked ? 'setting-row disabled' : 'setting-row'}>
               <input
                 type="checkbox"
-                checked={gamePrefs.realismMode}
+                checked={assistLocked || gamePrefs.realismMode}
+                disabled={assistLocked}
                 onChange={(e) => onGamePrefsChange({ ...gamePrefs, realismMode: e.target.checked })}
               />
               <span>
                 <span className="setting-name">Realism mode</span>
                 <span className="setting-hint">
-                  {gamePrefs.realismMode
-                    ? "No hints at all -- playable tiles aren't marked and legal cells aren't shown. Illegal placements just get rejected."
-                    : 'Turn on for no hints -- like laying a real tile against the board yourself.'}
+                  {assistLocked
+                    ? "Forced on by this game's hardcore rules."
+                    : gamePrefs.realismMode
+                      ? "No hints at all -- playable tiles aren't marked and legal cells aren't shown. Illegal placements just get rejected."
+                      : 'Turn on for no hints -- like laying a real tile against the board yourself.'}
                 </span>
               </span>
             </label>
 
-            <label className={gamePrefs.realismMode ? 'setting-row disabled' : 'setting-row'}>
+            <label className={assistLocked || gamePrefs.realismMode ? 'setting-row disabled' : 'setting-row'}>
               <input
                 type="checkbox"
-                checked={gamePrefs.markPlayableTiles}
-                disabled={gamePrefs.realismMode}
+                checked={gamePrefs.markPlayableTiles && !assistLocked}
+                disabled={assistLocked || gamePrefs.realismMode}
                 onChange={(e) => onGamePrefsChange({ ...gamePrefs, markPlayableTiles: e.target.checked })}
               />
               <span>
                 <span className="setting-name">Mark playable tiles</span>
                 <span className="setting-hint">
-                  {gamePrefs.realismMode
-                    ? 'Overridden by realism mode.'
-                    : gamePrefs.markPlayableTiles
-                      ? 'Tiles you cannot play are dimmed.'
-                      : 'All tiles look the same -- read the board yourself.'}
+                  {assistLocked
+                    ? 'Overridden by hardcore mode.'
+                    : gamePrefs.realismMode
+                      ? 'Overridden by realism mode.'
+                      : gamePrefs.markPlayableTiles
+                        ? 'Tiles you cannot play are dimmed.'
+                        : 'All tiles look the same -- read the board yourself.'}
                 </span>
               </span>
             </label>
