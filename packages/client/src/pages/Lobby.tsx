@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameRules, LobbyState } from '@triominos/shared';
+import { summarizeGameRules } from '@triominos/shared';
 import { GameRulesEditor } from '../components/GameRulesEditor';
 
 interface LobbyProps {
@@ -49,13 +50,14 @@ export function Lobby({ lobby, selfPlayerId, busy, error, onStart, onUpdateRules
           <button type="button" className="link-button" onClick={() => setShowRules((v) => !v)}>
             {showRules ? '−' : '+'} Game settings
           </button>
-          {showRules && <GameRulesEditor rules={lobby.rules} onChange={onUpdateRules} />}
+          {showRules ? (
+            <GameRulesEditor rules={lobby.rules} onChange={onUpdateRules} />
+          ) : (
+            <p className="rules-summary">{summarizeGameRules(lobby.rules)}</p>
+          )}
         </>
       ) : (
-        <p className="rules-summary">
-          {`Playing to ${lobby.rules.winningScore} · ${lobby.rules.tileSets}× tile set${lobby.rules.tileSets > 1 ? 's' : ''} · draw up to ${lobby.rules.maxDrawsPerTurn} a turn`}
-          {lobby.rules.freestyleTiles > 0 && ` · ${lobby.rules.freestyleTiles} freestyle tiles`}
-        </p>
+        <p className="rules-summary">{summarizeGameRules(lobby.rules)}</p>
       )}
 
       {isHost ? (

@@ -75,30 +75,39 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
     return set;
   }, [myHand, round.board]);
 
+  // Hardcore is a property of the game itself, not of this client, so it overrides the
+  // local assist preferences for everyone at the table: no hints, and the draw/pass
+  // buttons stay available whether or not a move exists.
+  const hardcore = game.rules.hardcoreMode;
+  const noAssist = hardcore || gamePrefs.realismMode;
+
   const hasAnyMove = hasAnyLegalPlacement(myHand, round.board);
+  // Under hardcore rules the buttons must never be derived from hasAnyMove -- a Draw button
+  // that only appears when you're stuck would announce the very thing the mode hides.
+  const offerDrawOrPass = isMyTurn && (hardcore || !hasAnyMove);
   // House rule: up to 3 draws a turn, then you may take the -10 and pass even if the
   // well still has tiles.
   const canStillDraw = round.wellCount > 0 && round.drawsThisTurn < game.rules.maxDrawsPerTurn;
 
   // With the assist off -- or when it isn't your turn -- every tile is shown identically,
-  // leaving it to the player to read the board and work out which tiles fit. Realism mode
-  // forces this regardless of the markPlayableTiles setting.
+  // leaving it to the player to read the board and work out which tiles fit. Realism and
+  // hardcore both force this regardless of the markPlayableTiles setting.
   const markedTileIds =
-    isMyTurn && gamePrefs.markPlayableTiles && !gamePrefs.realismMode
+    isMyTurn && gamePrefs.markPlayableTiles && !noAssist
       ? playableTileIds
       : new Set(myHand.map((t) => t.id));
 
   const selectedTile = myHand.find((t) => t.id === selectedTileId) ?? null;
   const highlights: BoardHighlight[] = useMemo(() => {
     if (!selectedTile || !isMyTurn) return [];
-    // Realism mode offers every empty edge cell instead of narrowing it down to the ones
+    // No-assist play offers every empty edge cell instead of narrowing it down to the ones
     // the selected tile actually fits -- an illegal attempt is simply rejected by the
     // server, the same way a real tile just wouldn't sit flush against the board.
-    if (gamePrefs.realismMode) {
+    if (noAssist) {
       return emptyFringeCells(round.board).map((cell) => ({ cell, values: selectedTile.values }));
     }
     return findLegalPlacements(selectedTile, round.board);
-  }, [selectedTile, round.board, isMyTurn, gamePrefs.realismMode]);
+  }, [selectedTile, round.board, isMyTurn, noAssist]);
 
   // The most recent scoring play drives the highlight, the bonus glow, and the score popup.
   // The very first tile of a round is logged as 'round-start' rather than 'placed' -- it
@@ -203,6 +212,7 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
           <SettingsMenu
             themePrefs={themePrefs}
             gamePrefs={gamePrefs}
+            assistLocked={hardcore}
             onThemeChange={onThemeChange}
             onGamePrefsChange={onGamePrefsChange}
           />
@@ -238,14 +248,19 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
               Playing to {game.rules.winningScore}
               {game.rules.tileSets > 1 && ` · ${game.rules.tileSets}× tiles`}
             </span>
-            {isMyTurn && !hasAnyMove && canStillDraw && (
-              <button className="primary" onClick={onDraw}>
+            {hardcore && (
+              <span className="badge hardcore" title="No hints, and you may draw whenever you like.">
+                Hardcore
+              </span>
+            )}
+            {offerDrawOrPass && canStillDraw && (
+              <button className={hardcore ? 'secondary' : 'primary'} onClick={onDraw}>
                 Draw from well (-5)
                 <span className="btn-sub">{round.drawsThisTurn}/{game.rules.maxDrawsPerTurn} drawn</span>
               </button>
             )}
-            {isMyTurn && !hasAnyMove && !canStillDraw && (
-              <button className="primary" onClick={onPass}>
+            {offerDrawOrPass && !canStillDraw && (
+              <button className={hardcore ? 'secondary' : 'primary'} onClick={onPass}>
                 Pass (-10)
                 <span className="btn-sub">{round.wellCount === 0 ? 'well is empty' : `drew ${round.drawsThisTurn}`}</span>
               </button>
@@ -271,7 +286,7 @@ export function Game({ game, selfPlayerId, error, themePrefs, gamePrefs, onTheme
         onDropOnCell={(cell) => handlePlace(cell)}
       />
 
-      <ActivityLog log={round.log} players={game.players} />
+      <ActivityLog log={round.log} players={game.players} hardcore={hardcore} />
 
       {error && <p className="error-text">{error}</p>}
 
@@ -616,20 +631,20 @@ function RoundEndModal({ game, onContinue, onPlayAgain, onLeave, onClose }: Roun
   );
 }
 
-function ActivityLog({ log, players }: { log: GameEvent[]; players: PublicGameState['players'] }) {
+function ActivityLog({ log, players, hardcore }: { log: GameEvent[]; players: PublicGameState['players']; hardcore: boolean }) {
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? id;
   const recent = log.slice(-6).reverse();
 
   return (
     <div className="activity-log">
       {recent.map((ev, i) => (
-        <div key={i} className="activity-entry">{describeEvent(ev, nameOf)}</div>
+        <div key={i} className="activity-entry">{describeEvent(ev, nameOf, hardcore)}</div>
       ))}
     </div>
   );
 }
 
-function describeEvent(ev: GameEvent, nameOf: (id: string) => string): string {
+function describeEvent(ev: GameEvent, nameOf: (id: string) => string, hardcore: boolean): string {
   switch (ev.type) {
     case 'round-start':
       return `${nameOf(ev.playerId)} opened with ${tileLabel(ev.tile.values)} for ${ev.score.total} points.`;
@@ -638,7 +653,10 @@ function describeEvent(ev: GameEvent, nameOf: (id: string) => string): string {
     case 'drew':
       return `${nameOf(ev.playerId)} drew a tile from the well (-5).`;
     case 'no-move-penalty':
-      return `${nameOf(ev.playerId)} had no legal move (-10).`;
+      // Hardcore takes the player's word for it, so the log can't claim there was no move.
+      return hardcore
+        ? `${nameOf(ev.playerId)} passed the turn (-10).`
+        : `${nameOf(ev.playerId)} had no legal move (-10).`;
     case 'round-end':
       return `Round ended -- ${nameOf(ev.winnerId)} came out ahead.`;
     case 'game-end':

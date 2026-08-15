@@ -181,6 +181,71 @@ describe('draw cap house rule', () => {
   });
 });
 
+describe('hardcore mode', () => {
+  /** p1 holds 4-4-5, which fits alongside the 3-4-5 opener, so they demonstrably have a move. */
+  function playableState(hardcoreMode: boolean): GameState {
+    const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);
+    const well = Array.from({ length: 10 }, (_, i) => ({
+      id: `w${i}`,
+      values: [0, 0, 1] as [number, number, number],
+    }));
+    return {
+      players: [
+        { id: 'p1', name: 'Alice', hand: [{ id: '4-4-5', values: [4, 4, 5] }], score: 100, connected: true },
+        { id: 'p2', name: 'Bob', hand: [{ id: '0-0-1', values: [0, 0, 1] }], score: 100, connected: true },
+      ],
+      round: {
+        roundNumber: 1, phase: 'playing', board, well,
+        turnOrder: ['p1', 'p2'], currentPlayerIndex: 0, passStreak: 0, drawsThisTurn: 0, log: [],
+      },
+      gameOver: false,
+      rules: { ...DEFAULT_GAME_RULES, hardcoreMode },
+    };
+  }
+
+  it('the fixture really does leave p1 with a legal move', () => {
+    const state = playableState(false);
+    expect(findLegalPlacements(state.players[0].hand[0], state.round.board).length).toBeGreaterThan(0);
+  });
+
+  it('lets a player draw even though a move exists, at the usual -5', () => {
+    const state = playableState(true);
+    applyDrawFromWell(state, 'p1');
+    expect(state.round.drawsThisTurn).toBe(1);
+    expect(state.players[0].score).toBe(95);
+  });
+
+  it('still honours the per-turn draw cap', () => {
+    const state = playableState(true);
+    applyDrawFromWell(state, 'p1');
+    applyDrawFromWell(state, 'p1');
+    applyDrawFromWell(state, 'p1');
+    expect(() => applyDrawFromWell(state, 'p1')).toThrow(/already drawn/i);
+  });
+
+  it('lets a player take the -10 once drawn out, without proving they were stuck', () => {
+    const state = playableState(true);
+    applyDrawFromWell(state, 'p1');
+    applyDrawFromWell(state, 'p1');
+    applyDrawFromWell(state, 'p1');
+    const res = applyNoMovePenalty(state, 'p1');
+    expect(res.roundEnded).toBe(false);
+    expect(state.players[0].score).toBe(100 - 15 - 10);
+    expect(currentPlayerId(state.round)).toBe('p2');
+  });
+
+  it('still makes them exhaust the draw allowance before passing', () => {
+    const state = playableState(true);
+    expect(() => applyNoMovePenalty(state, 'p1')).toThrow(/draw from the well first/i);
+  });
+
+  it('off by default: the same player is refused both the draw and the pass', () => {
+    const state = playableState(false);
+    expect(() => applyDrawFromWell(state, 'p1')).toThrow(/you have a legal move/i);
+    expect(() => applyNoMovePenalty(state, 'p1')).toThrow(/draw from the well first/i);
+  });
+});
+
 describe('applyResign', () => {
   function twoPlayerState(scores: [number, number]): GameState {
     const board = placeTile(emptyBoard(), 'start', { q: 0, r: 0, orient: 'up' }, [3, 4, 5]);

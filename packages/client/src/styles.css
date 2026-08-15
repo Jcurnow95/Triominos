@@ -262,6 +262,68 @@ input {
   font-size: 0.85rem;
 }
 
+/* ---------- Pre-game rules panel ---------- */
+
+.preset-row .option {
+  font-weight: 600;
+}
+
+/* Each group boxes up one kind of decision -- match length, or how hard it plays -- so the
+   panel reads as two short lists instead of one long column of controls. */
+.rules-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.rules-group-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.hardcore-row {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 12px;
+}
+
+.setting-note {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.badge.hardcore {
+  margin-left: 6px;
+  background: var(--bad);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+
+/* In the turn bar the badge sits inline with the other status chips, so it must not take
+   the list-row `margin-left: auto` that pushes it to the far edge. */
+.turn-bar .badge.hardcore {
+  margin-left: 0;
+}
+
+.rules-recap {
+  margin: 0;
+  padding-top: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+}
+
 .error-text {
   color: var(--bad);
   animation: shake 0.35s ease;
