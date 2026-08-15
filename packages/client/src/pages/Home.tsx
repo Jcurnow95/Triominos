@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import type { BotDifficulty, CellCoord, GameRules } from '@triominos/shared';
-import { DEFAULT_GAME_RULES } from '@triominos/shared';
+import { DEFAULT_GAME_RULES, summarizeGameRules } from '@triominos/shared';
 import { SettingsMenu } from '../components/SettingsMenu';
 import { GameRulesEditor } from '../components/GameRulesEditor';
 import { TileFace } from '../components/Board';
@@ -127,7 +127,13 @@ export function Home({ initialRoomCode, busy, error, themePrefs, gamePrefs, onTh
           <button type="button" className="link-button" onClick={() => setShowRules((v) => !v)}>
             {showRules ? '−' : '+'} Game settings
           </button>
-          {showRules && <GameRulesEditor rules={rules} onChange={setRules} />}
+          {/* Collapsed, the recap still says what you're about to start -- so a hardcore or
+              wildcard setup left over from a previous game is never a surprise. */}
+          {showRules ? (
+            <GameRulesEditor rules={rules} onChange={setRules} />
+          ) : (
+            <p className="rules-summary">{summarizeGameRules(rules)}</p>
+          )}
 
           <button
             className="primary"

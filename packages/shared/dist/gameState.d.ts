@@ -95,7 +95,13 @@ export interface DrawResult {
     wellEmpty: boolean;
 }
 export declare function applyDrawFromWell(state: GameState, playerId: string): DrawResult;
-/** Called when the current player has no legal move and has drawn as much as they may. */
+/**
+ * Called when the current player has no legal move and has drawn as much as they may.
+ * Under hardcore rules "no legal move" is taken on the player's word -- they still have to
+ * exhaust the draw allowance first, but the -10 is theirs to take even if a move was sitting
+ * there unseen. (A whole table choosing to give up with an empty well then ends the round
+ * as blocked, which is exactly what a table of players conceding means.)
+ */
 export declare function applyNoMovePenalty(state: GameState, playerId: string): {
     roundEnded: boolean;
     gameEnded: boolean;

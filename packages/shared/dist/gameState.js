@@ -157,7 +157,9 @@ export function applyDrawFromWell(state, playerId) {
     if (currentPlayerId(round) !== playerId)
         throw new Error('Not your turn');
     const player = state.players.find((p) => p.id === playerId);
-    if (hasAnyLegalPlacement(player.hand, round.board)) {
+    // Hardcore mode takes the referee out of it: nobody gets told a move exists, so a player
+    // who can't spot one may draw anyway and eat the -5. The draw cap still applies.
+    if (!state.rules.hardcoreMode && hasAnyLegalPlacement(player.hand, round.board)) {
         throw new Error('You have a legal move; you cannot draw');
     }
     if (round.drawsThisTurn >= state.rules.maxDrawsPerTurn) {
@@ -174,7 +176,13 @@ export function applyDrawFromWell(state, playerId) {
     round.log.push({ type: 'drew', playerId, tile });
     return { tile, wellEmpty: round.well.length === 0 };
 }
-/** Called when the current player has no legal move and has drawn as much as they may. */
+/**
+ * Called when the current player has no legal move and has drawn as much as they may.
+ * Under hardcore rules "no legal move" is taken on the player's word -- they still have to
+ * exhaust the draw allowance first, but the -10 is theirs to take even if a move was sitting
+ * there unseen. (A whole table choosing to give up with an empty well then ends the round
+ * as blocked, which is exactly what a table of players conceding means.)
+ */
 export function applyNoMovePenalty(state, playerId) {
     const round = state.round;
     if (round.phase !== 'playing')
@@ -185,7 +193,7 @@ export function applyNoMovePenalty(state, playerId) {
         throw new Error(`Draw from the well first (up to ${state.rules.maxDrawsPerTurn} tiles a turn)`);
     }
     const player = state.players.find((p) => p.id === playerId);
-    if (hasAnyLegalPlacement(player.hand, round.board)) {
+    if (!state.rules.hardcoreMode && hasAnyLegalPlacement(player.hand, round.board)) {
         throw new Error('You have a legal move');
     }
     player.score -= NO_MOVE_PENALTY;
