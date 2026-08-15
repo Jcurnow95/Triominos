@@ -15,11 +15,10 @@ import { Board as BoardView, BoardHighlight, BoardTileView } from '../components
 import { Rack } from '../components/Rack';
 import { SettingsMenu } from '../components/SettingsMenu';
 import {
-  POINT_A_TILE_ID,
-  POINT_B_TILE_ID,
   PUZZLE_LEVELS,
   PuzzleLevel,
   initialPuzzleBoard,
+  isPointTileId,
   isPuzzleSolved,
   loadPuzzleProgress,
   markPuzzleSolved,
@@ -97,7 +96,7 @@ function PuzzleLevelSelect({
         <div>
           <button className="link-button" onClick={onExit}>&larr; Back to menu</button>
           <h1>Puzzle Mode</h1>
-          <p className="tagline">Connect the two marked tiles using every tile you're given.</p>
+          <p className="tagline">Connect the marked tiles using every tile you're given.</p>
         </div>
         <SettingsMenu
           themePrefs={themePrefs}
@@ -114,6 +113,9 @@ function PuzzleLevelSelect({
             <span className="puzzle-level-number">{i + 1}</span>
             <span className="puzzle-level-name">{level.name}</span>
             <span className="puzzle-level-tiles">{level.tiles.length} tiles</span>
+            {level.points.length > 2 && (
+              <span className="puzzle-level-contacts">{level.points.length} points</span>
+            )}
           </button>
         ))}
       </div>
@@ -190,7 +192,7 @@ function PuzzlePlay({
     cell: t.cell,
     values: t.values,
     recent: lastPlacedKey !== null && cellKey(t.cell) === lastPlacedKey,
-    point: t.tileId === POINT_A_TILE_ID || t.tileId === POINT_B_TILE_ID,
+    point: isPointTileId(t.tileId),
   }));
 
   const splitByNumber = themePrefs.tileThemeId === 'coded';
@@ -274,7 +276,7 @@ function PuzzlePlay({
 
       <div className="turn-bar">
         {solved ? (
-          <span className="turn-indicator mine">Solved! Both points are connected.</span>
+          <span className="turn-indicator mine">Solved! Every point is connected.</span>
         ) : stuck ? (
           <span className="turn-indicator">
             {hand.length === 0 ? 'Out of tiles -- the points never connected.' : 'No legal moves left with your remaining tiles.'}
@@ -312,7 +314,7 @@ function PuzzlePlay({
             {solved ? (
               <>
                 <h2>Puzzle solved!</h2>
-                <p>You connected both points using every tile.</p>
+                <p>You connected every point using every tile.</p>
                 <div className="modal-actions">
                   {onNextLevel && <button className="primary" onClick={onNextLevel}>Next puzzle</button>}
                   <button onClick={handleReset}>Play again</button>
@@ -324,7 +326,7 @@ function PuzzlePlay({
                 <h2>No moves left</h2>
                 <p>
                   {hand.length === 0
-                    ? "You've placed every tile, but the two points still aren't connected."
+                    ? "You've placed every tile, but the points still aren't all connected."
                     : 'None of your remaining tiles fit anywhere on the board.'}{' '}
                   Undo a move or start over.
                 </p>

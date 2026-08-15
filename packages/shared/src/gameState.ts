@@ -10,7 +10,7 @@ import {
   scoreStartingTile,
   scoreStartingTileNoTriple,
 } from './scoring.js';
-import { Tile, generateDeck, isTriple, shuffle, tileSum } from './tiles.js';
+import { Tile, generateDeck, isFreestyle, isTriple, shuffle, tileSum } from './tiles.js';
 
 export interface PlayerSetup {
   id: string;
@@ -116,7 +116,7 @@ function openRoundWith(round: RoundState, players: PlayerState[], playerId: stri
   const score = hasTriple ? scoreStartingTile(tile, isZero) : scoreStartingTileNoTriple(tile);
   player.score += score.total;
 
-  round.board = placeBoardTile(round.board, tile.id, { q: 0, r: 0, orient: 'up' }, tile.values);
+  round.board = placeBoardTile(round.board, tile.id, { q: 0, r: 0, orient: 'up' }, tile.values, isFreestyle(tile));
   round.log.push({ type: 'round-start', playerId, tile, score, noTriple: !hasTriple });
   round.currentPlayerIndex = round.turnOrder.indexOf(playerId);
   advanceTurn(round);
@@ -213,7 +213,7 @@ export function applyPlaceTile(state: GameState, playerId: string, tileId: strin
   const bonus = evaluateBonus(round.board, cell, match.values);
   const score = scorePlay(tile, bonus);
 
-  round.board = placeBoardTile(round.board, tile.id, cell, match.values);
+  round.board = placeBoardTile(round.board, tile.id, cell, match.values, isFreestyle(tile));
   player.hand = player.hand.filter((t) => t.id !== tileId);
   player.score += score.total;
   round.passStreak = 0;

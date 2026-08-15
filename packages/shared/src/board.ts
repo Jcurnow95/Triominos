@@ -6,6 +6,13 @@ export interface PlacedTile {
   cell: CellCoord;
   /** values[i] sits at cellVertices(cell)[i] */
   values: [number, number, number];
+  /**
+   * True when the tile that was placed here started as a freestyle wildcard. Its "any"
+   * corners may since have settled onto real numbers (see `resolveAssignment`), which
+   * would otherwise make it indistinguishable from an ordinary printed tile -- this is
+   * what lets the board keep marking it as one after the fact.
+   */
+  freestyle: boolean;
 }
 
 /** Keyed by cellKey(cell). Plain object so it serializes cleanly over the wire. */
@@ -136,6 +143,12 @@ export function evaluateBonus(board: Board, cell: CellCoord, values: [number, nu
   return bridge ? 'bridge' : 'none';
 }
 
-export function placeTile(board: Board, tileId: string, cell: CellCoord, values: [number, number, number]): Board {
-  return { ...board, [cellKey(cell)]: { tileId, cell, values } };
+export function placeTile(
+  board: Board,
+  tileId: string,
+  cell: CellCoord,
+  values: [number, number, number],
+  freestyle = false,
+): Board {
+  return { ...board, [cellKey(cell)]: { tileId, cell, values, freestyle } };
 }

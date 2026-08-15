@@ -9,6 +9,12 @@ export interface BoardTileView {
   bonus?: BonusType;
   /** Puzzle mode: one of the two fixed anchor tiles the player must connect. */
   point?: boolean;
+  /**
+   * True when the tile placed here started as a freestyle wildcard. Its "any" corners
+   * may since have settled onto real numbers, which would otherwise leave it reading as
+   * an ordinary printed tile once played -- the star badge is what keeps it recognisable.
+   */
+  freestyle?: boolean;
 }
 
 export interface BoardHighlight {
@@ -204,6 +210,7 @@ export function Board({ tiles, highlights, floating, splitByNumber, pointFacingN
             recent={t.recent}
             bonus={t.bonus}
             point={t.point}
+            freestyle={t.freestyle}
             splitByNumber={splitByNumber}
             pointFacingNumbers={pointFacingNumbers}
           />
@@ -241,6 +248,7 @@ function PlacedTileShape({
   recent,
   bonus,
   point,
+  freestyle,
   splitByNumber,
   pointFacingNumbers,
 }: BoardTileView & { splitByNumber?: boolean; pointFacingNumbers?: boolean }) {
@@ -249,11 +257,13 @@ function PlacedTileShape({
   if (bonus === 'bridge' || bonus === 'hexagon') classNames.push(`bonus-${bonus}`);
   if (splitByNumber) classNames.push('coded');
   if (point) classNames.push('point-tile');
+  if (freestyle) classNames.push('freestyle-tile');
 
   return (
     <g className={classNames.join(' ')}>
       <TileFace vertices={cellPixelVertices(cell)} values={values} splitByNumber={splitByNumber} pointFacingNumbers={pointFacingNumbers} />
       {point && <PointBadge cell={cell} />}
+      {freestyle && <FreestyleBadge cell={cell} />}
     </g>
   );
 }
@@ -265,6 +275,22 @@ function PointBadge({ cell }: { cell: CellCoord }) {
     <g transform={`translate(${x} ${y})`} className="point-badge" aria-hidden="true">
       <circle r="9" />
       <path d="M0 -4.5 L2.6 -1 L6.5 -0.6 L3.6 2 L4.4 6 L0 4 L-4.4 6 L-3.6 2 L-6.5 -0.6 L-2.6 -1 Z" />
+    </g>
+  );
+}
+
+/**
+ * A star pinned to the centre of a placed freestyle tile. Once a wild corner settles on
+ * a real number (see `resolveAssignment` in board.ts) it prints identically to an
+ * ordinary tile, so without this the fact it was played as a wildcard would be lost the
+ * moment it touched the board.
+ */
+function FreestyleBadge({ cell }: { cell: CellCoord }) {
+  const { x, y } = cellCentroidPixel(cell);
+  return (
+    <g transform={`translate(${x} ${y})`} className="freestyle-badge" aria-hidden="true">
+      <circle r="8" />
+      <path d="M0 -6 L1.8 -1.8 L6 -1.4 L2.8 1.4 L3.8 6 L0 3.6 L-3.8 6 L-2.8 1.4 L-6 -1.4 L-1.8 -1.8 Z" />
     </g>
   );
 }
